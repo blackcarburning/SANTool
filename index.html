@@ -1,0 +1,2635 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brocade Zoning Planner</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --panel-soft: #f8fafc;
+      --text: #142033;
+      --muted: #5f6f83;
+      --line: #d7dee8;
+      --accent: #0f766e;
+      --accent-strong: #0b5e58;
+      --blue: #1d4ed8;
+      --red: #b42318;
+      --amber: #a15c07;
+      --green: #047857;
+      --code-bg: #101828;
+      --code-text: #e6edf7;
+      --shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #f8fafc 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    .header-inner {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #0f766e, #1d4ed8);
+      color: #ffffff;
+      font-weight: 800;
+      letter-spacing: 0;
+      flex: 0 0 auto;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .subhead {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    main {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      gap: 16px;
+    }
+
+    section,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    section {
+      padding: 16px;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 1.02rem;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 0.98rem;
+    }
+
+    p {
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 14px;
+      align-items: start;
+    }
+
+    .col-12 { grid-column: span 12; }
+    .col-8 { grid-column: span 8; }
+    .col-7 { grid-column: span 7; }
+    .col-6 { grid-column: span 6; }
+    .col-5 { grid-column: span 5; }
+    .col-4 { grid-column: span 4; }
+    .col-3 { grid-column: span 3; }
+
+    @media (max-width: 980px) {
+      .col-8, .col-7, .col-6, .col-5, .col-4, .col-3 { grid-column: span 12; }
+      .header-inner { align-items: flex-start; flex-direction: column; }
+    }
+
+    label {
+      display: block;
+      margin: 0 0 6px;
+      font-size: 0.9rem;
+      color: #344054;
+      font-weight: 700;
+    }
+
+    input[type="file"],
+    input[type="text"],
+    select,
+    textarea {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 9px 11px;
+      background: #ffffff;
+      color: var(--text);
+      font: inherit;
+    }
+
+    input[type="checkbox"],
+    input[type="radio"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+    }
+
+    textarea {
+      min-height: 160px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .commands {
+      min-height: 250px;
+      background: var(--code-bg);
+      color: var(--code-text);
+      border-color: #1f2937;
+    }
+
+    button {
+      min-height: 38px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 8px 12px;
+      background: var(--accent);
+      color: #ffffff;
+      font: inherit;
+      font-weight: 750;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button:hover { background: var(--accent-strong); }
+
+    button.secondary {
+      background: #ffffff;
+      border-color: #cbd5e1;
+      color: #243548;
+    }
+
+    button.secondary:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+    }
+
+    button.danger {
+      background: #ffffff;
+      border-color: #f5c2bd;
+      color: var(--red);
+    }
+
+    button.danger:hover {
+      background: #fff5f4;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
+      gap: 10px;
+    }
+
+    @media (max-width: 980px) {
+      .stat-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 11px;
+      background: var(--panel-soft);
+      min-height: 76px;
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.12rem;
+      overflow-wrap: anywhere;
+    }
+
+    .instruction-list {
+      margin: 0;
+      padding-left: 20px;
+      color: #344054;
+      line-height: 1.55;
+    }
+
+    .instruction-list code,
+    .inline-code {
+      background: #eef2f6;
+      border: 1px solid #d9e2ec;
+      border-radius: 6px;
+      padding: 1px 5px;
+      color: #1f2937;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.9em;
+    }
+
+    .hint {
+      color: var(--muted);
+      margin: 8px 0 0;
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+
+    .notice {
+      border: 1px solid #f2d18b;
+      background: #fff8e7;
+      color: #69410a;
+      border-radius: 8px;
+      padding: 10px 12px;
+      line-height: 1.45;
+    }
+
+    .notice.ok {
+      border-color: #abefc6;
+      background: #ecfdf3;
+      color: #075e45;
+    }
+
+    .notice.bad {
+      border-color: #fecdca;
+      background: #fff1f3;
+      color: #912018;
+    }
+
+    .tabs {
+      display: inline-flex;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #ffffff;
+    }
+
+    .tab {
+      border: 0;
+      border-radius: 0;
+      background: #ffffff;
+      color: #344054;
+      min-height: 36px;
+      padding: 7px 12px;
+    }
+
+    .tab[aria-selected="true"] {
+      background: #e7f6f3;
+      color: var(--accent-strong);
+    }
+
+    .tab:hover {
+      background: #f1f5f9;
+    }
+
+    .table-wrap {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: auto;
+      max-height: 560px;
+      background: #ffffff;
+    }
+
+    .table-wrap.short {
+      max-height: 320px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 980px;
+      font-size: 0.9rem;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid #e5eaf0;
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #f8fafc;
+      color: #344054;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+
+    td {
+      color: #243548;
+    }
+
+    .select-cell {
+      width: 46px;
+      text-align: center;
+    }
+
+    .wwpn {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.88rem;
+      overflow-wrap: anywhere;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #eef2f6;
+      color: #344054;
+      font-size: 0.8rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .badge.green { background: #dcfae6; color: #066044; }
+    .badge.blue { background: #dbeafe; color: #1e3a8a; }
+    .badge.amber { background: #fef0c7; color: #7a4206; }
+    .badge.red { background: #fee4e2; color: #912018; }
+
+    .summary-text {
+      min-height: 118px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      padding: 12px;
+      color: #243548;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .split-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .split-title h2 {
+      margin: 0;
+    }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      padding: 10px 12px;
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 800;
+      color: #344054;
+    }
+
+    .config-list {
+      margin: 10px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 8px;
+      max-height: 320px;
+      overflow: auto;
+    }
+
+    .config-list li {
+      border: 1px solid #e5eaf0;
+      border-radius: 8px;
+      padding: 9px;
+      background: #ffffff;
+    }
+
+    .config-list strong,
+    .config-list span {
+      display: block;
+    }
+
+    .config-list span {
+      color: var(--muted);
+      font-size: 0.86rem;
+      overflow-wrap: anywhere;
+      margin-top: 3px;
+    }
+
+    dialog {
+      width: min(980px, calc(100vw - 32px));
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0;
+      box-shadow: 0 28px 80px rgba(15, 23, 42, 0.26);
+      color: var(--text);
+    }
+
+    dialog::backdrop {
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    .dialog-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    .dialog-header h2 {
+      margin: 0;
+    }
+
+    .dialog-body {
+      padding: 16px;
+      background: var(--panel-soft);
+    }
+
+    .reference-output {
+      min-height: 420px;
+      background: var(--code-bg);
+      color: var(--code-text);
+      border-color: #1f2937;
+      white-space: pre;
+      overflow: auto;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">SAN</div>
+        <div>
+          <h1>Brocade Zoning Planner</h1>
+          <p class="subhead">Load captured switch output, select fabric members, and generate reviewable zoning commands.</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="hbaCommandBtn" class="secondary" type="button">Windows HBA search</button>
+        <button id="uidScriptBtn" class="secondary" type="button">Windows UID script</button>
+        <button id="npivNotesBtn" class="secondary" type="button">NPIV notes</button>
+        <button id="saveProjectBtn" class="secondary" type="button" disabled>Save JSON</button>
+        <button id="restoreProjectBtn" class="secondary" type="button">Restore JSON</button>
+        <input id="restoreProjectFile" class="hidden" type="file" accept=".json,application/json">
+        <button id="downloadWorkbookBtn" class="secondary" type="button" disabled>Download spreadsheet</button>
+        <button id="clearBtn" class="danger" type="button">Clear</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="grid">
+        <div class="col-7">
+          <h2>Prepare the switch captures</h2>
+          <ol class="instruction-list">
+            <li>Use one text file per fabric. Capture one switch from Fabric A and one switch from Fabric B. Fabric A on its own is fine.</li>
+            <li>In PuTTY, increase scrollback first: <span class="inline-code">Window &gt; Lines of scrollback</span>, use at least <span class="inline-code">20000</span>; use more for large fabrics.</li>
+            <li>Start logging to a plain text file before running the commands. Leave a blank line between command outputs if you are pasting manually.</li>
+            <li>Run <code>switchshow</code> on each switch in the fabric, then run <code>alishow</code> once. The optional extra command that would make NPIV port mapping easier is <code>nsshow</code>, especially where <code>switchshow</code> only says <code>1 N Port + X NPIV public</code>.</li>
+            <li>Do not edit out the <code>switchName</code>, <code>zoning: ON (...)</code>, <code>Defined configuration</code>, or <code>Effective configuration</code> lines.</li>
+          </ol>
+        </div>
+        <div class="col-5">
+          <h2>Load files</h2>
+          <div class="grid">
+            <div class="col-6">
+              <label for="fabricAFile">Fabric A capture</label>
+              <input id="fabricAFile" type="file" accept=".txt,.log,text/plain">
+            </div>
+            <div class="col-6">
+              <label for="fabricBFile">Fabric B capture</label>
+              <input id="fabricBFile" type="file" accept=".txt,.log,text/plain">
+            </div>
+            <div class="col-12">
+              <label for="extraFiles">Or load one or more capture files</label>
+              <input id="extraFiles" type="file" accept=".txt,.log,text/plain" multiple>
+              <p class="hint">The parser uses the internal <span class="inline-code">Fabric:</span> and <span class="inline-code">switchName:</span> lines when they exist, so filenames and switch names can vary.</p>
+            </div>
+            <div class="col-12 actions">
+              <button id="loadBtn" type="button">Process files</button>
+              <span id="loadStatus" class="hint">No files loaded yet.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="summarySection" class="hidden">
+      <div class="split-title">
+        <h2>Parsed fabric summary</h2>
+        <label style="margin:0; min-width:240px;">
+          Fabric
+          <select id="fabricSelect"></select>
+        </label>
+      </div>
+      <div class="stat-grid">
+        <div class="stat"><span>Switch</span><strong id="statSwitch">-</strong></div>
+        <div class="stat"><span>Domain</span><strong id="statDomain">-</strong></div>
+        <div class="stat"><span>Active config</span><strong id="statActiveConfig">-</strong></div>
+        <div class="stat"><span>Aliases</span><strong id="statAliases">0</strong></div>
+        <div class="stat"><span>Zones</span><strong id="statZones">0</strong></div>
+        <div class="stat"><span>Ports seen</span><strong id="statPorts">0</strong></div>
+      </div>
+      <div id="warningBox" class="notice hidden" style="margin-top:12px;"></div>
+    </section>
+
+    <section id="npivImportSection" class="hidden">
+      <div class="grid">
+        <div class="col-5">
+          <h2>NPIV port evidence</h2>
+          <p class="hint">Import <span class="inline-code">nsshow</span> or <span class="inline-code">portshow xx</span> output for the selected fabric to map WWPNs hidden behind NPIV summary ports.</p>
+          <label for="npivFabricSelect">Fabric to update</label>
+          <select id="npivFabricSelect"></select>
+          <div style="margin-top:10px;">
+            <label for="npivEvidenceFiles">Evidence files</label>
+            <input id="npivEvidenceFiles" type="file" accept=".txt,.log,text/plain" multiple>
+          </div>
+        </div>
+        <div class="col-7">
+          <label for="npivEvidenceText">Paste nsshow or portshow output</label>
+          <textarea id="npivEvidenceText" spellcheck="false" placeholder="Paste nsshow output, or one or more portshow xx outputs, for this fabric."></textarea>
+          <div class="actions" style="margin-top:10px;">
+            <button id="importNpivBtn" type="button">Import NPIV evidence</button>
+            <button id="clearNpivTextBtn" class="secondary" type="button">Clear evidence text</button>
+            <span id="npivImportStatus" class="hint">No supplemental NPIV evidence imported yet.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="wwpnBulkSection" class="hidden">
+      <div class="grid">
+        <div class="col-5">
+          <h2>Bulk select from Windows WWPN output</h2>
+          <p class="hint">Paste the output from the Windows HBA search helper. The tool normalises compact and colon-separated WWPNs, searches aliases in the selected fabric, and can tick all matched aliases in one step.</p>
+          <label for="wwpnFabricSelect">Fabric to search</label>
+          <select id="wwpnFabricSelect"></select>
+          <div class="actions" style="margin-top:10px;">
+            <button id="tickWwpnMatchesBtn" type="button">Find aliases and tick</button>
+            <button id="previewWwpnMatchesBtn" class="secondary" type="button">Find aliases only</button>
+            <button id="clearWwpnTextBtn" class="secondary" type="button">Clear WWPN output</button>
+          </div>
+          <div id="wwpnBulkStatus" class="hint">No Windows WWPN output searched yet.</div>
+        </div>
+        <div class="col-7">
+          <label for="wwpnBulkText">Paste Windows WWPN output</label>
+          <textarea id="wwpnBulkText" spellcheck="false" placeholder="Paste Get-InitiatorPort output here. Example: Fibre Channel 51402ec0017c289d 51402ec0017c289c"></textarea>
+        </div>
+        <div class="col-12">
+          <div class="table-wrap short">
+            <table>
+              <thead>
+                <tr>
+                  <th>Input WWPN</th>
+                  <th>Address type</th>
+                  <th>Alias match</th>
+                  <th>Vendor hint</th>
+                  <th>Switch port</th>
+                  <th>Existing zones</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="wwpnMatchRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="activeConfigSection" class="hidden">
+      <div class="grid">
+        <div class="col-5">
+          <h2>Active config</h2>
+          <div id="activeConfigText" class="summary-text"></div>
+        </div>
+        <div class="col-7">
+          <details open>
+            <summary>Zones in the active config</summary>
+            <div style="margin-top:10px;">
+              <label for="activeZoneSearch">Search active zones</label>
+              <input id="activeZoneSearch" type="text" placeholder="Filter all words in zone name or members" aria-label="Search zones in active config">
+            </div>
+            <ul id="activeZoneList" class="config-list"></ul>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section id="deviceSection" class="hidden">
+      <div class="split-title">
+        <h2>Select devices to zone together</h2>
+        <div class="actions">
+          <input id="deviceSearch" type="text" placeholder="Filter all words in alias, WWPN, port, or existing zone" aria-label="Filter devices by alias, WWPN, port, or existing zone" style="width:420px;">
+          <button id="selectVisibleBtn" class="secondary" type="button">Select visible</button>
+          <button id="clearSelectionBtn" class="secondary" type="button">Clear selection</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="select-cell">Use</th>
+              <th>Alias or member</th>
+              <th>WWPN</th>
+              <th>Switch port</th>
+              <th>Existing zones</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="deviceRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="commandSection" class="hidden">
+      <div class="grid">
+        <div class="col-4">
+          <h2>Zone</h2>
+          <label for="zoneName">Zone name</label>
+          <input id="zoneName" type="text" placeholder="Example: UEATSM03_new_V5045_DC2_Jul2026">
+          <p class="hint">Use a Brocade-safe name with no spaces. Existing names in these captures use letters, numbers, underscores, and hyphens.</p>
+        </div>
+        <div class="col-4">
+          <h2>Config target</h2>
+          <label for="configMode">Add zone to</label>
+          <select id="configMode">
+            <option value="existing">Existing config</option>
+            <option value="new">New config cloned from active config</option>
+          </select>
+          <div id="existingConfigWrap" style="margin-top:10px;">
+            <label for="existingConfig">Existing config</label>
+            <select id="existingConfig"></select>
+          </div>
+          <div id="newConfigWrap" class="hidden" style="margin-top:10px;">
+            <label for="newConfigName">New config name</label>
+            <input id="newConfigName" type="text" placeholder="Example: ZONE_SET_1_WITH_NEW_ZONE">
+          </div>
+        </div>
+        <div class="col-4">
+          <h2>Command options</h2>
+          <label>
+            <input id="includeCfgSave" type="checkbox" checked>
+            Include <span class="inline-code">cfgsave</span> after activation
+          </label>
+          <p class="hint">Commands are generated with aliases where aliases exist. Unaliased logged-in ports are zoned by WWPN.</p>
+          <div class="actions" style="margin-top:14px;">
+            <button id="generateBtn" type="button">Generate commands</button>
+            <button id="copyCommandsBtn" class="secondary" type="button" disabled>Copy commands</button>
+            <button id="downloadCommandsBtn" class="secondary" type="button" disabled>Download commands</button>
+          </div>
+        </div>
+        <div class="col-5">
+          <h2>Plain English summary</h2>
+          <div id="plainSummary" class="summary-text">Select a fabric, choose devices, name the zone, and generate commands.</div>
+        </div>
+        <div class="col-7">
+          <h2>Command output</h2>
+          <textarea id="commandOutput" class="commands" readonly spellcheck="false"></textarea>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="referenceDialog">
+    <div class="dialog-header">
+      <div>
+        <h2 id="referenceTitle">Reference</h2>
+        <p id="referenceDescription" class="hint" style="margin:6px 0 0;"></p>
+      </div>
+      <form method="dialog">
+        <button class="secondary" type="submit">Close</button>
+      </form>
+    </div>
+    <div class="dialog-body">
+      <textarea id="referenceText" class="reference-output" readonly spellcheck="false"></textarea>
+      <div class="actions" style="margin-top:12px;">
+        <button id="copyReferenceBtn" type="button">Copy</button>
+        <button id="downloadReferenceBtn" class="secondary" type="button">Download text</button>
+      </div>
+    </div>
+  </dialog>
+
+  <template id="uidScriptTemplate"><#
+.SYNOPSIS
+    Prints Windows disk number, friendly name, and disk UID.
+
+.DESCRIPTION
+    Outputs one disk per row, sorted by Windows disk number.
+
+.EXAMPLE
+    0 : DELL PERC H730 Mini : 600508B1001C3D4E...
+    1 : IBM 2145            : 600507680C8084A8...
+#>
+
+[CmdletBinding()]
+param (
+    [string]$CsvPath
+)
+
+$ErrorActionPreference = 'Stop'
+
+try {
+    $results = Get-Disk |
+        Sort-Object Number |
+        Select-Object `
+            @{Name = 'DiskID'; Expression = { $_.Number }},
+            @{Name = 'Name';   Expression = { $_.FriendlyName }},
+            @{Name = 'UID';    Expression = { $_.UniqueId }}
+
+    Write-Output 'DiskID : Name : UID'
+    Write-Output '-------------------'
+
+    foreach ($disk in $results) {
+        Write-Output ('{0} : {1} : {2}' -f `
+            $disk.DiskID,
+            $disk.Name,
+            $disk.UID)
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($CsvPath)) {
+        $folder = Split-Path -Parent $CsvPath
+
+        if ($folder -and -not (Test-Path -LiteralPath $folder)) {
+            New-Item -Path $folder -ItemType Directory -Force | Out-Null
+        }
+
+        $results |
+            Export-Csv `
+                -Path $CsvPath `
+                -NoTypeInformation `
+                -Encoding UTF8
+
+        Write-Output ''
+        Write-Output "CSV exported to: $CsvPath"
+    }
+}
+catch {
+    Write-Error "Failed to read disk information: $($_.Exception.Message)"
+    exit 1
+}</template>
+
+  <template id="npivNotesTemplate">lstargetportfc example:
+
+id WWPN             WWNN             port_id owning_node_id current_node_id nportid host_io_permitted virtualized protocol
+1  500507681011118A 500507681000118A 1       1              1               030700  yes               no          scsi
+2  500507681015118A 500507681000118A 1       1                              000000  no                yes         scsi
+3  500507681019118A 500507681000118A 1       1                              000000  no                yes         nvme
+
+Interpretation:
+
+1: intracluster, replication, storage virtualisation
+2: host access to storage
+3: don't use</template>
+
+  <script>
+    const WWPN_RE = /\b(?:[0-9a-fA-F]{2}:){7}[0-9a-fA-F]{2}\b/g;
+    const COMPACT_WWPN_RE = /\b[0-9a-fA-F]{16}\b/g;
+    const SAFE_NAME_RE = /^[A-Za-z0-9_$^.-]+$/;
+    const PROJECT_STORAGE_KEY = "brocade-zoning-planner:last-project";
+    const PROJECT_VERSION = 2;
+    const WINDOWS_HBA_COMMAND = [
+      "$ErrorActionPreference = 'Stop'",
+      "",
+      "Write-Output '=== Fibre Channel initiator ports ==='",
+      "Get-InitiatorPort |",
+      "  Sort-Object ConnectionType, NodeAddress, PortAddress |",
+      "  Select-Object ConnectionType, NodeAddress, PortAddress |",
+      "  Format-Table -AutoSize",
+      "",
+      "Write-Output ''",
+      "Write-Output '=== Adapter inventory hints ==='",
+      "Get-CimInstance Win32_PnPEntity |",
+      "  Where-Object {",
+      "    $_.PNPClass -eq 'SCSIAdapter' -or",
+      "    $_.Name -match 'Fibre|Fibre Channel|HBA|QLogic|Marvell|Emulex|Broadcom' -or",
+      "    $_.Manufacturer -match 'QLogic|Marvell|Emulex|Broadcom|HPE|HP|Dell|Lenovo'",
+      "  } |",
+      "  Sort-Object Manufacturer, Name |",
+      "  Select-Object Name, Manufacturer, PNPDeviceID |",
+      "  Format-List"
+    ].join("\n");
+
+    const VENDOR_PREFIX_HINTS = [
+      { prefixes: ["51402ec0", "20000024ff", "21000024ff", "2001000e1e"], name: "Likely QLogic/Marvell", note: "WWN prefix hint" },
+      { prefixes: ["10000000c9", "20000000c9", "10000090fa", "20000090fa", "10000090fb", "20000090fb", "1000e007", "2000e007"], name: "Likely Emulex/Broadcom", note: "WWN prefix hint" },
+      { prefixes: ["50050768"], name: "IBM storage target", note: "storage WWN prefix" },
+      { prefixes: ["500a09", "50060b", "200000a0b8", "200100a0b8"], name: "NetApp/storage target", note: "storage WWN prefix" },
+      { prefixes: ["56c9ce90"], name: "HPE Alletra/storage target", note: "storage WWN prefix" }
+    ];
+
+    const state = {
+      fabrics: [],
+      activeFabricIndex: 0,
+      selected: new Set(),
+      visibleDeviceIds: [],
+      wwpnMatches: [],
+      referenceFilename: "brocade-reference.txt",
+      autoSaveReady: false
+    };
+
+    const els = {
+      fabricAFile: document.getElementById("fabricAFile"),
+      fabricBFile: document.getElementById("fabricBFile"),
+      extraFiles: document.getElementById("extraFiles"),
+      hbaCommandBtn: document.getElementById("hbaCommandBtn"),
+      uidScriptBtn: document.getElementById("uidScriptBtn"),
+      npivNotesBtn: document.getElementById("npivNotesBtn"),
+      saveProjectBtn: document.getElementById("saveProjectBtn"),
+      restoreProjectBtn: document.getElementById("restoreProjectBtn"),
+      restoreProjectFile: document.getElementById("restoreProjectFile"),
+      referenceDialog: document.getElementById("referenceDialog"),
+      referenceTitle: document.getElementById("referenceTitle"),
+      referenceDescription: document.getElementById("referenceDescription"),
+      referenceText: document.getElementById("referenceText"),
+      copyReferenceBtn: document.getElementById("copyReferenceBtn"),
+      downloadReferenceBtn: document.getElementById("downloadReferenceBtn"),
+      uidScriptTemplate: document.getElementById("uidScriptTemplate"),
+      npivNotesTemplate: document.getElementById("npivNotesTemplate"),
+      loadBtn: document.getElementById("loadBtn"),
+      loadStatus: document.getElementById("loadStatus"),
+      clearBtn: document.getElementById("clearBtn"),
+      summarySection: document.getElementById("summarySection"),
+      npivImportSection: document.getElementById("npivImportSection"),
+      wwpnBulkSection: document.getElementById("wwpnBulkSection"),
+      activeConfigSection: document.getElementById("activeConfigSection"),
+      deviceSection: document.getElementById("deviceSection"),
+      commandSection: document.getElementById("commandSection"),
+      fabricSelect: document.getElementById("fabricSelect"),
+      statSwitch: document.getElementById("statSwitch"),
+      statDomain: document.getElementById("statDomain"),
+      statActiveConfig: document.getElementById("statActiveConfig"),
+      statAliases: document.getElementById("statAliases"),
+      statZones: document.getElementById("statZones"),
+      statPorts: document.getElementById("statPorts"),
+      warningBox: document.getElementById("warningBox"),
+      npivFabricSelect: document.getElementById("npivFabricSelect"),
+      npivEvidenceFiles: document.getElementById("npivEvidenceFiles"),
+      npivEvidenceText: document.getElementById("npivEvidenceText"),
+      importNpivBtn: document.getElementById("importNpivBtn"),
+      clearNpivTextBtn: document.getElementById("clearNpivTextBtn"),
+      npivImportStatus: document.getElementById("npivImportStatus"),
+      wwpnFabricSelect: document.getElementById("wwpnFabricSelect"),
+      wwpnBulkText: document.getElementById("wwpnBulkText"),
+      tickWwpnMatchesBtn: document.getElementById("tickWwpnMatchesBtn"),
+      previewWwpnMatchesBtn: document.getElementById("previewWwpnMatchesBtn"),
+      clearWwpnTextBtn: document.getElementById("clearWwpnTextBtn"),
+      wwpnBulkStatus: document.getElementById("wwpnBulkStatus"),
+      wwpnMatchRows: document.getElementById("wwpnMatchRows"),
+      activeConfigText: document.getElementById("activeConfigText"),
+      activeZoneSearch: document.getElementById("activeZoneSearch"),
+      activeZoneList: document.getElementById("activeZoneList"),
+      deviceRows: document.getElementById("deviceRows"),
+      deviceSearch: document.getElementById("deviceSearch"),
+      selectVisibleBtn: document.getElementById("selectVisibleBtn"),
+      clearSelectionBtn: document.getElementById("clearSelectionBtn"),
+      zoneName: document.getElementById("zoneName"),
+      configMode: document.getElementById("configMode"),
+      existingConfigWrap: document.getElementById("existingConfigWrap"),
+      existingConfig: document.getElementById("existingConfig"),
+      newConfigWrap: document.getElementById("newConfigWrap"),
+      newConfigName: document.getElementById("newConfigName"),
+      includeCfgSave: document.getElementById("includeCfgSave"),
+      generateBtn: document.getElementById("generateBtn"),
+      copyCommandsBtn: document.getElementById("copyCommandsBtn"),
+      downloadCommandsBtn: document.getElementById("downloadCommandsBtn"),
+      downloadWorkbookBtn: document.getElementById("downloadWorkbookBtn"),
+      plainSummary: document.getElementById("plainSummary"),
+      commandOutput: document.getElementById("commandOutput")
+    };
+
+    function normaliseNewlines(text) {
+      return String(text || "")
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n")
+        .replace(/\t/g, " ");
+    }
+
+    function findFirst(re, text) {
+      const match = re.exec(text);
+      return match ? match[1].trim() : "";
+    }
+
+    function unique(values) {
+      const seen = new Set();
+      const result = [];
+      values.forEach((value) => {
+        const cleaned = String(value || "").trim();
+        const key = cleaned.toLowerCase();
+        if (!cleaned || seen.has(key)) return;
+        seen.add(key);
+        result.push(cleaned);
+      });
+      return result;
+    }
+
+    function searchTerms(value) {
+      return unique(String(value || "")
+        .toLowerCase()
+        .split(/[\s,;]+/)
+        .map((term) => term.trim())
+        .filter((term) => term && term !== "and" && term !== "+"));
+    }
+
+    function matchesSearchTerms(value, terms) {
+      const haystack = String(value || "").toLowerCase();
+      return terms.every((term) => haystack.includes(term));
+    }
+
+    function canonicalWwpn(value) {
+      const compact = String(value || "").replace(/[^0-9a-fA-F]/g, "").toLowerCase();
+      if (compact.length !== 16) return "";
+      return compact.match(/.{2}/g).join(":");
+    }
+
+    function wwpnsFromText(text) {
+      const source = String(text || "");
+      const colonWwpns = (source.match(WWPN_RE) || []).map((item) => canonicalWwpn(item));
+      const compactWwpns = (source.match(COMPACT_WWPN_RE) || []).map((item) => canonicalWwpn(item));
+      return unique([...colonWwpns, ...compactWwpns].filter(Boolean));
+    }
+
+    function compactWwpn(value) {
+      return String(value || "").replace(/[^0-9a-fA-F]/g, "").toLowerCase();
+    }
+
+    function parseWindowsWwpnOutput(text) {
+      const lines = normaliseNewlines(text).split("\n");
+      const entries = [];
+      const seen = new Set();
+
+      function addEntry(rawWwpn, kind, sourceLine) {
+        const wwpn = canonicalWwpn(rawWwpn);
+        if (!wwpn) return;
+        const key = `${kind}:${wwpn}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        entries.push({
+          wwpn,
+          kind,
+          sourceLine: String(sourceLine || "").trim()
+        });
+      }
+
+      lines.forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed || /^[-\s]+$/.test(trimmed)) return;
+        if (/^(ConnectionType|Name\s*:|Manufacturer\s*:|PNPDeviceID\s*:)/i.test(trimmed)) return;
+
+        const tableMatch = trimmed.match(/^(.+?)\s+([0-9a-fA-F:]{16,23})\s+([0-9a-fA-F:]{16,23})\s*$/);
+        if (tableMatch && canonicalWwpn(tableMatch[2]) && canonicalWwpn(tableMatch[3])) {
+          addEntry(tableMatch[2], "NodeAddress", line);
+          addEntry(tableMatch[3], "PortAddress", line);
+          return;
+        }
+
+        wwpnsFromText(line).forEach((wwpn) => addEntry(wwpn, "Unknown", line));
+      });
+
+      return entries;
+    }
+
+    function vendorHintForWwpn(wwpn, sourceLine) {
+      const line = String(sourceLine || "");
+      if (/qlogic|marvell/i.test(line)) return "QLogic/Marvell (from script output)";
+      if (/emulex|broadcom/i.test(line)) return "Emulex/Broadcom (from script output)";
+
+      const compact = compactWwpn(wwpn);
+      const match = VENDOR_PREFIX_HINTS.find((hint) => hint.prefixes.some((prefix) => compact.startsWith(prefix)));
+      return match ? `${match.name} (${match.note})` : "Unknown";
+    }
+
+    function devicesMatchingWwpn(fabric, wwpn) {
+      const key = String(wwpn || "").toLowerCase();
+      if (!fabric || !key) return [];
+      return fabric.devices.filter((device) => device.wwpns.some((item) => item.toLowerCase() === key));
+    }
+
+    function buildWwpnMatches(fabric, text) {
+      return parseWindowsWwpnOutput(text).flatMap((entry) => {
+        const matches = devicesMatchingWwpn(fabric, entry.wwpn);
+        const vendorHint = vendorHintForWwpn(entry.wwpn, entry.sourceLine);
+        if (!matches.length) {
+          return [{
+            ...entry,
+            vendorHint,
+            deviceId: "",
+            alias: "",
+            ports: [],
+            zones: [],
+            selected: false,
+            note: entry.kind === "NodeAddress"
+              ? "No alias matched this node address. FC zoning normally uses the PortAddress WWPN."
+              : "No alias matched this WWPN in the selected fabric."
+          }];
+        }
+        return matches.map((device) => ({
+          ...entry,
+          vendorHint,
+          deviceId: device.id,
+          alias: device.alias === "Unaliased WWPN" ? device.zoneMember : device.alias,
+          ports: device.ports,
+          zones: device.usedInZones,
+          selected: true,
+          note: entry.kind === "NodeAddress" ? "Matched a node address; confirm before zoning with it." : ""
+        }));
+      });
+    }
+
+    function parseMembers(chunks) {
+      const text = chunks.join(" ").replace(/\s+/g, " ").trim();
+      if (!text) return [];
+      if (text.includes(";")) {
+        return unique(text.split(";").map(cleanMemberToken).filter(Boolean));
+      }
+      const wwpns = wwpnsFromText(text);
+      if (wwpns.length > 1 || (wwpns.length === 1 && cleanMemberToken(text) === wwpns[0])) {
+        return wwpns;
+      }
+      return unique(text.split(/\s+/).map(cleanMemberToken).filter(Boolean));
+    }
+
+    function cleanMemberToken(value) {
+      let token = String(value || "").trim();
+      token = token.replace(/^"+|"+$/g, "");
+      token = token.replace(/,+$/g, "");
+      token = token.replace(/\s+$/g, "");
+      if (!token || token === "-") return "";
+      if (WWPN_RE.test(token)) {
+        WWPN_RE.lastIndex = 0;
+        const found = token.match(WWPN_RE);
+        return found && found.length === 1 ? found[0].toLowerCase() : token;
+      }
+      WWPN_RE.lastIndex = 0;
+      return token;
+    }
+
+    function parseSwitchPortLine(line, switchName) {
+      const match = line.match(/^\s*(\d+)\s+(\d+)\s+([0-9a-fA-F]{6})\s+(\S+)\s+(\S+)\s+(\S+)\s+(FC|--)\s*(.*)$/);
+      if (!match) return null;
+      const details = (match[8] || "").trim();
+      const wwpns = wwpnsFromText(details);
+      const port = {
+        index: match[1],
+        port: match[2],
+        address: match[3],
+        media: match[4],
+        speed: match[5],
+        state: match[6],
+        proto: match[7],
+        details,
+        switchshowWwpns: wwpns.slice(),
+        supplementalWwpns: [],
+        wwpns,
+        switchName: switchName || "",
+        label: `${switchName || "switch"} port ${match[2]} (${match[3]})`
+      };
+      return port;
+    }
+
+    function parseFabricText(text, fileName, labelHint) {
+      const raw = normaliseNewlines(text);
+      const lines = raw.split("\n");
+      const fabric = {
+        fileName,
+        labelHint,
+        sourceText: raw,
+        supplementalInputs: [],
+        supplementalMappings: [],
+        fabricName: findFirst(/^\s*Fabric:\s*(.+)$/im, raw) || labelHint || fileName || "Fabric",
+        switchName: findFirst(/^\s*switchName:\s*(.+)$/im, raw) || findFirst(/^\s*Name:\s*(.+)$/im, raw) || "",
+        switchDomain: findFirst(/^\s*switchDomain:\s*(.+)$/im, raw),
+        switchWwn: findFirst(/^\s*switchWwn:\s*(.+)$/im, raw),
+        zoningName: findFirst(/^\s*zoning:\s*ON\s*\(([^)]+)\)/im, raw),
+        ports: [],
+        aliases: [],
+        zones: [],
+        configs: [],
+        effectiveZones: [],
+        warnings: []
+      };
+
+      let inSwitchShow = false;
+      let currentSwitchName = fabric.switchName;
+      let configSection = "";
+      let current = null;
+
+      function finishObject() {
+        if (!current) return;
+        current.members = parseMembers(current.memberChunks);
+        delete current.memberChunks;
+        if (current.section === "effective" && current.type === "zone") {
+          fabric.effectiveZones.push(current);
+        } else if (current.type === "alias") {
+          fabric.aliases.push(current);
+        } else if (current.type === "zone") {
+          fabric.zones.push(current);
+        } else if (current.type === "cfg") {
+          fabric.configs.push(current);
+        }
+        current = null;
+      }
+
+      lines.forEach((line) => {
+        const trimmed = line.trim();
+        if (/>+\s*switchshow\s*$/i.test(line)) {
+          inSwitchShow = true;
+          const promptSwitch = line.match(/^\s*([^:\s]+):.*>\s*switchshow\s*$/i);
+          currentSwitchName = promptSwitch ? promptSwitch[1].trim() : fabric.switchName;
+          finishObject();
+          return;
+        }
+        if (/>+\s*alishow\s*$/i.test(line) || /^Defined configuration:/i.test(trimmed)) {
+          inSwitchShow = false;
+          finishObject();
+          if (/^Defined configuration:/i.test(trimmed)) configSection = "defined";
+          return;
+        }
+        if (/^Defined configuration:/i.test(trimmed)) {
+          finishObject();
+          configSection = "defined";
+          return;
+        }
+        if (/^Effective configuration:/i.test(trimmed)) {
+          finishObject();
+          configSection = "effective";
+          return;
+        }
+
+        if (inSwitchShow) {
+          const switchNameMatch = line.match(/^\s*switchName:\s*(.+)$/i);
+          if (switchNameMatch) {
+            currentSwitchName = switchNameMatch[1].trim();
+            if (!fabric.switchName) fabric.switchName = currentSwitchName;
+            return;
+          }
+          const port = parseSwitchPortLine(line, currentSwitchName || fabric.switchName);
+          if (port) fabric.ports.push(port);
+          return;
+        }
+
+        const objectMatch = line.match(/^\s*(cfg|zone|alias):\s*(\S+)(.*)$/i);
+        if (objectMatch && configSection) {
+          finishObject();
+          current = {
+            section: configSection,
+            type: objectMatch[1].toLowerCase(),
+            name: objectMatch[2].trim(),
+            memberChunks: []
+          };
+          const rest = objectMatch[3].trim();
+          if (rest) current.memberChunks.push(rest);
+          return;
+        }
+
+        if (current) {
+          if (!trimmed) return;
+          if (/^=+$/.test(trimmed)) return;
+          if (/password:/i.test(trimmed)) return;
+          if (/^[\w.-]+:\S+:\S+>/.test(trimmed)) return;
+          current.memberChunks.push(trimmed);
+        }
+      });
+      finishObject();
+
+      fabric.switchNames = unique([fabric.switchName, ...fabric.ports.map((port) => port.switchName)].filter(Boolean));
+      if (fabric.switchNames.length > 1) {
+        fabric.switchName = `${fabric.switchNames[0]} + ${fabric.switchNames.length - 1} more`;
+      }
+      enrichFabric(fabric);
+      return fabric;
+    }
+
+    function pidToAddressPrefix(pid) {
+      const cleaned = String(pid || "").replace(/[^0-9a-fA-F]/g, "").toLowerCase();
+      return cleaned.length >= 4 ? cleaned.slice(0, 4) : "";
+    }
+
+    function pidToPortIndex(pid) {
+      const cleaned = String(pid || "").replace(/[^0-9a-fA-F]/g, "").toLowerCase();
+      if (cleaned.length < 4) return "";
+      return String(parseInt(cleaned.slice(2, 4), 16));
+    }
+
+    function parseSupplementalEvidence(text, sourceName) {
+      const raw = normaliseNewlines(text);
+      const lines = raw.split("\n");
+      const mappings = [];
+      const source = sourceName || "pasted evidence";
+      let currentSwitchName = "";
+      let currentNsEntry = null;
+      let currentPortShow = null;
+
+      function flushNsEntry() {
+        if (!currentNsEntry) return;
+        const wwpns = unique(currentNsEntry.wwpns);
+        if (wwpns.length) {
+          mappings.push({
+            type: "nsshow",
+            source,
+            switchName: currentNsEntry.switchName || currentSwitchName,
+            port: currentNsEntry.port || "",
+            portIndex: currentNsEntry.portIndex || "",
+            addressPrefix: currentNsEntry.addressPrefix || "",
+            pid: currentNsEntry.pid || "",
+            wwpns
+          });
+        }
+        currentNsEntry = null;
+      }
+
+      function flushPortShow() {
+        if (!currentPortShow) return;
+        const wwpns = unique(currentPortShow.wwpns);
+        if (wwpns.length) {
+          mappings.push({
+            type: "portshow",
+            source,
+            switchName: currentPortShow.switchName || currentSwitchName,
+            port: currentPortShow.port || "",
+            portIndex: currentPortShow.portIndex || "",
+            addressPrefix: "",
+            pid: "",
+            wwpns
+          });
+        }
+        currentPortShow = null;
+      }
+
+      lines.forEach((line) => {
+        const trimmed = line.trim();
+        const promptMatch = trimmed.match(/^([^:\s]+):.*>\s*(nsshow|portshow)\b\s*(.*)$/i);
+        if (promptMatch) {
+          currentSwitchName = promptMatch[1].trim();
+          if (/^nsshow$/i.test(promptMatch[2])) {
+            flushNsEntry();
+            flushPortShow();
+            return;
+          }
+          if (/^portshow$/i.test(promptMatch[2])) {
+            flushNsEntry();
+            flushPortShow();
+            const portArg = (promptMatch[3] || "").trim().split(/\s+/)[0] || "";
+            currentPortShow = { switchName: currentSwitchName, port: portArg, portIndex: portArg.replace(/\D/g, ""), wwpns: [] };
+          }
+          return;
+        }
+
+        if (/^nsshow\b/i.test(trimmed)) {
+          flushNsEntry();
+          flushPortShow();
+          return;
+        }
+
+        const barePortShow = trimmed.match(/^portshow\s+(\S+)/i);
+        if (barePortShow) {
+          flushNsEntry();
+          flushPortShow();
+          const portArg = barePortShow[1].trim();
+          currentPortShow = { switchName: currentSwitchName, port: portArg, portIndex: portArg.replace(/\D/g, ""), wwpns: [] };
+          return;
+        }
+
+        const nsshowEntry = trimmed.match(/^(?:N|NL|U|F)\s+([0-9a-fA-F]{6})[;\s]+.*?((?:[0-9a-fA-F]{2}:){7}[0-9a-fA-F]{2}|[0-9a-fA-F]{16})/);
+        if (nsshowEntry) {
+          flushNsEntry();
+          const pid = nsshowEntry[1];
+          currentNsEntry = {
+            switchName: currentSwitchName,
+            pid,
+            addressPrefix: pidToAddressPrefix(pid),
+            portIndex: pidToPortIndex(pid),
+            port: pidToPortIndex(pid),
+            wwpns: [canonicalWwpn(nsshowEntry[2])]
+          };
+          return;
+        }
+
+        if (currentNsEntry) {
+          const portIndexMatch = trimmed.match(/^Port\s+Index\s*:\s*(\d+)/i);
+          if (portIndexMatch) {
+            currentNsEntry.portIndex = portIndexMatch[1];
+            currentNsEntry.port = portIndexMatch[1];
+          }
+        }
+
+        if (currentPortShow) {
+          const portIndexMatch = trimmed.match(/^portIndex\s*:\s*(\d+)/i);
+          if (portIndexMatch) currentPortShow.portIndex = portIndexMatch[1];
+          const portNameMatch = trimmed.match(/^portName\s*:.*\bport\s*(\d+)\b/i);
+          if (portNameMatch && !currentPortShow.port) currentPortShow.port = portNameMatch[1];
+          currentPortShow.wwpns.push(...wwpnsFromText(trimmed));
+        }
+      });
+
+      flushNsEntry();
+      flushPortShow();
+      return mappings.filter((mapping) => mapping.wwpns.length && (mapping.port || mapping.portIndex || mapping.addressPrefix));
+    }
+
+    function mappingMatchesPort(mapping, port) {
+      if (mapping.switchName && port.switchName && mapping.switchName.toLowerCase() !== port.switchName.toLowerCase()) {
+        return false;
+      }
+      if (mapping.port && String(mapping.port).includes("/") && String(mapping.port).split("/").pop() === String(port.port)) {
+        return true;
+      }
+      if (mapping.port && String(mapping.port) === String(port.port)) return true;
+      if (mapping.portIndex && String(mapping.portIndex) === String(port.index)) return true;
+      if (mapping.addressPrefix && String(port.address || "").toLowerCase().startsWith(mapping.addressPrefix)) return true;
+      return false;
+    }
+
+    function applySupplementalMappings(fabric) {
+      fabric.supplementalMappings.forEach((mapping) => {
+        const matchingPorts = fabric.ports.filter((port) => mappingMatchesPort(mapping, port));
+        matchingPorts.forEach((port) => {
+          const additions = unique(mapping.wwpns || []);
+          additions.forEach((wwpn) => {
+            if (!port.wwpns.includes(wwpn)) port.wwpns.push(wwpn);
+            if (!port.supplementalWwpns.includes(wwpn) && !port.switchshowWwpns.includes(wwpn)) {
+              port.supplementalWwpns.push(wwpn);
+            }
+          });
+        });
+      });
+    }
+
+    function enrichFabric(fabric) {
+      fabric.warnings = [];
+      fabric.supplementalInputs = Array.isArray(fabric.supplementalInputs) ? fabric.supplementalInputs : [];
+      fabric.supplementalMappings = Array.isArray(fabric.supplementalMappings) ? fabric.supplementalMappings : [];
+      fabric.aliasByName = new Map(fabric.aliases.map((item) => [item.name.toLowerCase(), item]));
+      fabric.zoneByName = new Map(fabric.zones.map((item) => [item.name.toLowerCase(), item]));
+      fabric.configByName = new Map(fabric.configs.map((item) => [item.name.toLowerCase(), item]));
+      fabric.ports.forEach((port) => {
+        port.switchshowWwpns = Array.isArray(port.switchshowWwpns) ? port.switchshowWwpns : unique(port.wwpns || []);
+        port.supplementalWwpns = [];
+        port.wwpns = port.switchshowWwpns.slice();
+      });
+      applySupplementalMappings(fabric);
+      fabric.portByWwpn = new Map();
+      fabric.ports.forEach((port) => {
+        port.wwpns.forEach((wwpn) => {
+          if (!fabric.portByWwpn.has(wwpn)) fabric.portByWwpn.set(wwpn, []);
+          fabric.portByWwpn.get(wwpn).push(port);
+        });
+        if (/F-Port/i.test(port.details) && port.state.toLowerCase() === "online" && port.wwpns.length === 0) {
+          fabric.warnings.push(`${port.label} is online as an F-Port but switchshow did not list individual WWPNs. This is usually NPIV or a summary line; collect nsshow or portshow ${port.port} if you need exact port mapping.`);
+        }
+      });
+
+      const activeFromEffective = fabric.configs.find((item) => item.section === "effective");
+      fabric.activeConfigName = (activeFromEffective && activeFromEffective.name) || fabric.zoningName || "";
+      const activeDefined = fabric.configByName.get(String(fabric.activeConfigName || "").toLowerCase());
+      fabric.activeZoneNames = activeDefined && activeDefined.members.length
+        ? activeDefined.members.slice()
+        : unique(fabric.effectiveZones.map((zone) => zone.name));
+      fabric.activeZoneSet = new Set(fabric.activeZoneNames.map((item) => item.toLowerCase()));
+
+      fabric.aliasUse = new Map();
+      fabric.zones.forEach((zone) => {
+        zone.members.forEach((member) => {
+          const key = member.toLowerCase();
+          if (!fabric.aliasUse.has(key)) fabric.aliasUse.set(key, []);
+          fabric.aliasUse.get(key).push(zone.name);
+        });
+      });
+
+      function resolveMember(member, seen) {
+        const key = String(member || "").toLowerCase();
+        if (!key || seen.has(key)) return [];
+        const wwpns = wwpnsFromText(key);
+        if (wwpns.length) return wwpns;
+        const alias = fabric.aliasByName.get(key);
+        if (!alias) return [];
+        seen.add(key);
+        return unique(alias.members.flatMap((subMember) => resolveMember(subMember, seen)));
+      }
+
+      function portLabelForWwpn(port, wwpn) {
+        if (port.supplementalWwpns && port.supplementalWwpns.includes(wwpn)) {
+          return `${port.label} (NPIV evidence)`;
+        }
+        return port.label;
+      }
+
+      fabric.devices = fabric.aliases.map((alias) => {
+        const resolvedWwpns = unique(alias.members.flatMap((member) => resolveMember(member, new Set())));
+        const ports = unique(resolvedWwpns.flatMap((wwpn) => (fabric.portByWwpn.get(wwpn) || []).map((port) => portLabelForWwpn(port, wwpn))));
+        const usedInZones = unique(fabric.aliasUse.get(alias.name.toLowerCase()) || []);
+        return {
+          id: `alias:${alias.name}`,
+          type: "alias",
+          alias: alias.name,
+          zoneMember: alias.name,
+          members: alias.members,
+          wwpns: resolvedWwpns,
+          ports,
+          usedInZones,
+          note: resolvedWwpns.length ? "" : "Alias does not resolve directly to a WWPN in this capture."
+        };
+      });
+
+      const aliasedWwpns = new Set(fabric.devices.flatMap((device) => device.wwpns).map((wwpn) => wwpn.toLowerCase()));
+      fabric.ports.forEach((port) => {
+        port.wwpns.forEach((wwpn) => {
+          if (aliasedWwpns.has(wwpn.toLowerCase())) return;
+          fabric.devices.push({
+            id: `wwpn:${wwpn}`,
+            type: "wwpn",
+            alias: "Unaliased WWPN",
+            zoneMember: wwpn,
+            members: [wwpn],
+            wwpns: [wwpn],
+            ports: [portLabelForWwpn(port, wwpn)],
+            usedInZones: [],
+            note: "Logged in to switchshow but no matching alias was found in alishow."
+          });
+        });
+      });
+
+      fabric.devices.sort((a, b) => {
+        const aName = a.alias === "Unaliased WWPN" ? a.wwpns[0] : a.alias;
+        const bName = b.alias === "Unaliased WWPN" ? b.wwpns[0] : b.alias;
+        return aName.localeCompare(bName, undefined, { sensitivity: "base" });
+      });
+    }
+
+    async function readFile(file) {
+      return {
+        name: file.name,
+        text: await file.text()
+      };
+    }
+
+    async function loadFiles() {
+      const selected = [];
+      if (els.fabricAFile.files[0]) selected.push({ file: els.fabricAFile.files[0], hint: "Fabric A" });
+      if (els.fabricBFile.files[0]) selected.push({ file: els.fabricBFile.files[0], hint: "Fabric B" });
+      Array.from(els.extraFiles.files || []).forEach((file) => selected.push({ file, hint: "" }));
+      if (!selected.length) {
+        setStatus("Choose at least one capture file.", "bad");
+        return;
+      }
+
+      els.loadBtn.disabled = true;
+      setStatus("Reading files...", "");
+      try {
+        const parsed = [];
+        for (const item of selected) {
+          const fileData = await readFile(item.file);
+          parsed.push(parseFabricText(fileData.text, fileData.name, item.hint));
+        }
+        state.fabrics = parsed;
+        state.activeFabricIndex = 0;
+        state.selected.clear();
+        state.wwpnMatches = [];
+        els.wwpnBulkText.value = "";
+        els.commandOutput.value = "";
+        els.plainSummary.textContent = "Select devices, name the zone, and generate commands.";
+        renderAll();
+        autoSaveProject();
+        setStatus(`Loaded ${parsed.length} fabric capture${parsed.length === 1 ? "" : "s"}.`, "ok");
+      } catch (error) {
+        console.error(error);
+        setStatus(`Could not parse files: ${error.message}`, "bad");
+      } finally {
+        els.loadBtn.disabled = false;
+      }
+    }
+
+    async function importNpivEvidence() {
+      const fabric = state.fabrics[Number(els.npivFabricSelect.value)];
+      if (!fabric) {
+        els.npivImportStatus.textContent = "Load a fabric before importing NPIV evidence.";
+        els.npivImportStatus.className = "notice bad";
+        return;
+      }
+
+      const inputs = [];
+      const pasted = els.npivEvidenceText.value.trim();
+      if (pasted) inputs.push({ name: "Pasted NPIV evidence", text: pasted });
+      for (const file of Array.from(els.npivEvidenceFiles.files || [])) {
+        inputs.push(await readFile(file));
+      }
+
+      if (!inputs.length) {
+        els.npivImportStatus.textContent = "Choose a file or paste nsshow/portshow output first.";
+        els.npivImportStatus.className = "notice bad";
+        return;
+      }
+
+      let mappingCount = 0;
+      let wwpnCount = 0;
+      inputs.forEach((input) => {
+        const mappings = parseSupplementalEvidence(input.text, input.name);
+        fabric.supplementalInputs.push({
+          name: input.name,
+          importedAt: new Date().toISOString(),
+          text: input.text
+        });
+        fabric.supplementalMappings.push(...mappings);
+        mappingCount += mappings.length;
+        wwpnCount += mappings.reduce((sum, mapping) => sum + mapping.wwpns.length, 0);
+      });
+
+      enrichFabric(fabric);
+      renderAll();
+      autoSaveProject();
+      els.npivEvidenceFiles.value = "";
+      els.npivEvidenceText.value = "";
+      els.npivImportStatus.textContent = `Imported ${mappingCount} NPIV mapping${mappingCount === 1 ? "" : "s"} covering ${wwpnCount} WWPN${wwpnCount === 1 ? "" : "s"} into ${fabric.fabricName}.`;
+      els.npivImportStatus.className = mappingCount ? "notice ok" : "notice";
+    }
+
+    function setStatus(message, type) {
+      els.loadStatus.textContent = message;
+      els.loadStatus.className = type === "bad" ? "notice bad" : type === "ok" ? "notice ok" : "hint";
+    }
+
+    function activeFabric() {
+      return state.fabrics[state.activeFabricIndex] || null;
+    }
+
+    function renderAll() {
+      const hasData = state.fabrics.length > 0;
+      [els.summarySection, els.npivImportSection, els.wwpnBulkSection, els.activeConfigSection, els.deviceSection, els.commandSection].forEach((el) => el.classList.toggle("hidden", !hasData));
+      els.saveProjectBtn.disabled = !hasData;
+      els.downloadWorkbookBtn.disabled = !hasData;
+      if (!hasData) return;
+      renderFabricSelect();
+      renderNpivFabricSelect();
+      renderWwpnFabricSelect();
+      renderSummary();
+      renderActiveConfig();
+      renderConfigControls();
+      renderWwpnResults();
+      renderDevices();
+    }
+
+    function renderFabricSelect() {
+      els.fabricSelect.innerHTML = "";
+      state.fabrics.forEach((fabric, index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = `${fabric.fabricName || "Fabric"} - ${fabric.switchName || fabric.fileName}`;
+        els.fabricSelect.appendChild(option);
+      });
+      els.fabricSelect.value = String(state.activeFabricIndex);
+    }
+
+    function renderNpivFabricSelect() {
+      els.npivFabricSelect.innerHTML = "";
+      state.fabrics.forEach((fabric, index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = `${fabric.fabricName || "Fabric"} - ${fabric.switchName || fabric.fileName}`;
+        els.npivFabricSelect.appendChild(option);
+      });
+      els.npivFabricSelect.value = String(state.activeFabricIndex);
+    }
+
+    function renderWwpnFabricSelect() {
+      els.wwpnFabricSelect.innerHTML = "";
+      state.fabrics.forEach((fabric, index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = `${fabric.fabricName || "Fabric"} - ${fabric.switchName || fabric.fileName}`;
+        els.wwpnFabricSelect.appendChild(option);
+      });
+      els.wwpnFabricSelect.value = String(state.activeFabricIndex);
+    }
+
+    function renderWwpnResults() {
+      els.wwpnMatchRows.innerHTML = "";
+      if (!state.wwpnMatches.length) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 7;
+        td.textContent = "Paste Windows WWPN output and run a search.";
+        tr.appendChild(td);
+        els.wwpnMatchRows.appendChild(tr);
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+      state.wwpnMatches.forEach((match) => {
+        const tr = document.createElement("tr");
+        const wwpnTd = document.createElement("td");
+        wwpnTd.className = "wwpn";
+        wwpnTd.textContent = match.wwpn;
+
+        const kindTd = document.createElement("td");
+        kindTd.textContent = match.kind || "Unknown";
+
+        const aliasTd = document.createElement("td");
+        if (match.alias) {
+          const badge = document.createElement("span");
+          badge.className = match.selected ? "badge green" : "badge";
+          badge.textContent = match.alias;
+          aliasTd.appendChild(badge);
+        } else {
+          aliasTd.textContent = "No match";
+        }
+
+        const vendorTd = document.createElement("td");
+        vendorTd.textContent = match.vendorHint || "Unknown";
+
+        const portTd = document.createElement("td");
+        portTd.textContent = match.ports && match.ports.length ? match.ports.join(", ") : "Not seen in switchshow";
+
+        const zonesTd = document.createElement("td");
+        zonesTd.textContent = match.zones && match.zones.length ? match.zones.join("; ") : "No existing zone";
+
+        const noteTd = document.createElement("td");
+        noteTd.textContent = match.note || "";
+
+        tr.append(wwpnTd, kindTd, aliasTd, vendorTd, portTd, zonesTd, noteTd);
+        fragment.appendChild(tr);
+      });
+      els.wwpnMatchRows.appendChild(fragment);
+    }
+
+    function runBulkWwpnSearch(options = {}) {
+      const tick = Boolean(options.tick);
+      const silent = Boolean(options.silent);
+      const fabric = state.fabrics[Number(els.wwpnFabricSelect.value)];
+      if (!fabric) {
+        if (!silent) {
+          els.wwpnBulkStatus.textContent = "Load a fabric before searching Windows WWPN output.";
+          els.wwpnBulkStatus.className = "notice bad";
+        }
+        return [];
+      }
+
+      const text = els.wwpnBulkText.value.trim();
+      if (!text) {
+        state.wwpnMatches = [];
+        renderWwpnResults();
+        if (!silent) {
+          els.wwpnBulkStatus.textContent = "Paste Windows WWPN output first.";
+          els.wwpnBulkStatus.className = "notice bad";
+        }
+        return [];
+      }
+
+      state.activeFabricIndex = Number(els.wwpnFabricSelect.value);
+      state.wwpnMatches = buildWwpnMatches(fabric, text);
+      const matchedDeviceIds = unique(state.wwpnMatches
+        .filter((match) => match.deviceId)
+        .map((match) => match.deviceId));
+
+      if (tick) {
+        matchedDeviceIds.forEach((id) => state.selected.add(id));
+      }
+
+      renderFabricSelect();
+      renderNpivFabricSelect();
+      renderWwpnFabricSelect();
+      renderSummary();
+      renderActiveConfig();
+      renderConfigControls();
+      renderWwpnResults();
+      renderDevices();
+
+      if (!silent) {
+        const inputCount = parseWindowsWwpnOutput(text).length;
+        const action = tick ? " and ticked" : "";
+        els.wwpnBulkStatus.textContent = `Found ${inputCount} WWPN entr${inputCount === 1 ? "y" : "ies"} and matched${action} ${matchedDeviceIds.length} alias/device row${matchedDeviceIds.length === 1 ? "" : "s"} in ${fabric.fabricName}.`;
+        els.wwpnBulkStatus.className = matchedDeviceIds.length ? "notice ok" : "notice";
+      }
+
+      autoSaveProject();
+      return state.wwpnMatches;
+    }
+
+    function renderSummary() {
+      const fabric = activeFabric();
+      els.statSwitch.textContent = fabric.switchName || "-";
+      els.statDomain.textContent = fabric.switchDomain || "-";
+      els.statActiveConfig.textContent = fabric.activeConfigName || "-";
+      els.statAliases.textContent = String(fabric.aliases.length);
+      els.statZones.textContent = String(fabric.zones.length);
+      els.statPorts.textContent = String(fabric.ports.length);
+
+      if (fabric.warnings.length) {
+        els.warningBox.classList.remove("hidden");
+        els.warningBox.textContent = fabric.warnings.slice(0, 4).join(" ");
+      } else {
+        els.warningBox.classList.add("hidden");
+        els.warningBox.textContent = "";
+      }
+    }
+
+    function renderActiveConfig() {
+      const fabric = activeFabric();
+      const activeZones = fabric.activeZoneNames;
+      const effectiveCount = fabric.effectiveZones.length;
+      const terms = searchTerms(els.activeZoneSearch.value);
+      const visibleZones = activeZones.filter((zoneName) => {
+        if (!terms.length) return true;
+        const zone = fabric.zoneByName.get(zoneName.toLowerCase()) || fabric.effectiveZones.find((item) => item.name.toLowerCase() === zoneName.toLowerCase());
+        const members = zone && zone.members.length ? zone.members.join(" ") : "";
+        return matchesSearchTerms(`${zoneName} ${members}`, terms);
+      });
+      els.activeConfigText.textContent = [
+        `Active configuration: ${fabric.activeConfigName || "not found"}`,
+        `Defined active config members: ${activeZones.length}`,
+        `Visible after search: ${visibleZones.length}`,
+        `Effective zones parsed: ${effectiveCount}`,
+        `Zoning line from switchshow: ${fabric.zoningName || "not found"}`
+      ].join("\n");
+
+      els.activeZoneList.innerHTML = "";
+      if (!visibleZones.length) {
+        const li = document.createElement("li");
+        const title = document.createElement("strong");
+        title.textContent = "No matching active zones";
+        const members = document.createElement("span");
+        members.textContent = "Try a different zone name, alias, or WWPN.";
+        li.append(title, members);
+        els.activeZoneList.appendChild(li);
+        return;
+      }
+      visibleZones.forEach((zoneName) => {
+        const zone = fabric.zoneByName.get(zoneName.toLowerCase()) || fabric.effectiveZones.find((item) => item.name.toLowerCase() === zoneName.toLowerCase());
+        const li = document.createElement("li");
+        const title = document.createElement("strong");
+        title.textContent = zoneName;
+        const members = document.createElement("span");
+        members.textContent = zone && zone.members.length ? zone.members.join("; ") : "No members parsed in this capture.";
+        li.append(title, members);
+        els.activeZoneList.appendChild(li);
+      });
+    }
+
+    function renderConfigControls() {
+      const fabric = activeFabric();
+      els.existingConfig.innerHTML = "";
+      fabric.configs
+        .filter((config) => config.section === "defined")
+        .forEach((config) => {
+          const option = document.createElement("option");
+          option.value = config.name;
+          option.textContent = `${config.name}${config.name === fabric.activeConfigName ? " (active)" : ""}`;
+          els.existingConfig.appendChild(option);
+        });
+      if (fabric.activeConfigName) els.existingConfig.value = fabric.activeConfigName;
+      updateConfigMode();
+    }
+
+    function deviceSearchText(device) {
+      return [
+        device.alias,
+        device.zoneMember,
+        device.members.join(" "),
+        device.wwpns.join(" "),
+        device.ports.join(" "),
+        // Existing zones are deliberately searchable as a first-class column.
+        device.usedInZones.join(" "),
+        device.note
+      ].join(" ").toLowerCase();
+    }
+
+    function renderDevices() {
+      const fabric = activeFabric();
+      const terms = searchTerms(els.deviceSearch.value);
+      const fragment = document.createDocumentFragment();
+      state.visibleDeviceIds = [];
+
+      fabric.devices.forEach((device) => {
+        if (terms.length && !matchesSearchTerms(deviceSearchText(device), terms)) return;
+        state.visibleDeviceIds.push(device.id);
+        const tr = document.createElement("tr");
+
+        const selectTd = document.createElement("td");
+        selectTd.className = "select-cell";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = state.selected.has(device.id);
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) state.selected.add(device.id);
+          else state.selected.delete(device.id);
+          autoSaveProject();
+        });
+        selectTd.appendChild(checkbox);
+
+        const aliasTd = document.createElement("td");
+        const aliasStrong = document.createElement("strong");
+        aliasStrong.textContent = device.alias === "Unaliased WWPN" ? device.wwpns[0] : device.alias;
+        const aliasHint = document.createElement("div");
+        aliasHint.className = "hint";
+        aliasHint.textContent = device.type === "alias" ? `Zone member: ${device.zoneMember}` : "Zone member is the raw WWPN";
+        aliasTd.append(aliasStrong, aliasHint);
+
+        const wwpnTd = document.createElement("td");
+        wwpnTd.className = "wwpn";
+        wwpnTd.textContent = device.wwpns.length ? device.wwpns.join(", ") : device.members.join(", ");
+
+        const portTd = document.createElement("td");
+        portTd.textContent = device.ports.length ? device.ports.join(", ") : "Not seen in switchshow";
+
+        const zonesTd = document.createElement("td");
+        const badges = document.createElement("div");
+        badges.className = "badge-row";
+        if (device.usedInZones.length) {
+          device.usedInZones.slice(0, 8).forEach((zoneName) => {
+            const badge = document.createElement("span");
+            badge.className = `badge ${fabric.activeZoneSet.has(zoneName.toLowerCase()) ? "green" : "blue"}`;
+            badge.textContent = zoneName;
+            badges.appendChild(badge);
+          });
+          if (device.usedInZones.length > 8) {
+            const more = document.createElement("span");
+            more.className = "badge";
+            more.textContent = `+${device.usedInZones.length - 8} more`;
+            badges.appendChild(more);
+          }
+        } else {
+          const badge = document.createElement("span");
+          badge.className = "badge amber";
+          badge.textContent = "No existing zone";
+          badges.appendChild(badge);
+        }
+        zonesTd.appendChild(badges);
+
+        const noteTd = document.createElement("td");
+        noteTd.textContent = device.note || "";
+
+        tr.append(selectTd, aliasTd, wwpnTd, portTd, zonesTd, noteTd);
+        fragment.appendChild(tr);
+      });
+
+      els.deviceRows.innerHTML = "";
+      els.deviceRows.appendChild(fragment);
+    }
+
+    function selectedDevices() {
+      const fabric = activeFabric();
+      if (!fabric) return [];
+      const selected = fabric.devices.filter((device) => state.selected.has(device.id));
+      return selected;
+    }
+
+    function quote(value) {
+      return `"${String(value || "").replace(/"/g, "")}"`;
+    }
+
+    function validateNames(zoneName, mode, targetConfig) {
+      const fabric = activeFabric();
+      const problems = [];
+      if (!zoneName) problems.push("Enter a zone name.");
+      if (zoneName && !SAFE_NAME_RE.test(zoneName)) problems.push("The zone name contains characters this tool will not put into Brocade object names. Use letters, numbers, underscores, hyphens, dots, dollar, or caret.");
+      if (zoneName && fabric.zoneByName.has(zoneName.toLowerCase())) problems.push("That zone name already exists in the parsed fabric.");
+      if (!targetConfig) problems.push("Choose or enter a config name.");
+      if (targetConfig && !SAFE_NAME_RE.test(targetConfig)) problems.push("The config name contains characters this tool will not put into Brocade object names.");
+      if (mode === "new" && targetConfig && fabric.configByName.has(targetConfig.toLowerCase())) problems.push("That new config name already exists in the parsed fabric.");
+      return problems;
+    }
+
+    function generateCommands() {
+      const fabric = activeFabric();
+      const devices = selectedDevices();
+      const zoneName = els.zoneName.value.trim();
+      const mode = els.configMode.value;
+      const targetConfig = mode === "existing" ? els.existingConfig.value.trim() : els.newConfigName.value.trim();
+      const problems = validateNames(zoneName, mode, targetConfig);
+
+      if (devices.length < 2) problems.push("Select at least two devices or members to zone together.");
+      if (problems.length) {
+        els.plainSummary.textContent = problems.join("\n");
+        els.commandOutput.value = "";
+        els.copyCommandsBtn.disabled = true;
+        els.downloadCommandsBtn.disabled = true;
+        autoSaveProject();
+        return;
+      }
+
+      const members = unique(devices.map((device) => device.zoneMember));
+      const selectedText = devices.map((device) => {
+        const name = device.alias === "Unaliased WWPN" ? device.zoneMember : device.alias;
+        const wwpnText = device.wwpns.length ? device.wwpns.join(", ") : device.members.join(", ");
+        const portText = device.ports.length ? device.ports.join(", ") : "no switchshow port match";
+        return `${name} (${wwpnText}; ${portText})`;
+      });
+
+      const commands = [];
+      commands.push(`zonecreate ${quote(zoneName)}, ${quote(members.join("; "))}`);
+      if (mode === "existing") {
+        commands.push(`cfgadd ${quote(targetConfig)}, ${quote(zoneName)}`);
+      } else {
+        const clonedMembers = unique([...fabric.activeZoneNames, zoneName]);
+        commands.push(`cfgcreate ${quote(targetConfig)}, ${quote(clonedMembers.join("; "))}`);
+      }
+      commands.push(`cfgenable ${quote(targetConfig)}`);
+      if (els.includeCfgSave.checked) commands.push("cfgsave");
+
+      const summary = [];
+      summary.push(`On ${fabric.fabricName} (${fabric.switchName || "switch unknown"}), these devices are being zoned together:`);
+      summary.push(selectedText.map((item) => `- ${item}`).join("\n"));
+      summary.push("");
+      summary.push(`The tool will create zone ${zoneName} with ${members.length} member${members.length === 1 ? "" : "s"}.`);
+      if (mode === "existing") {
+        summary.push(`It will add ${zoneName} to existing config ${targetConfig}, then enable ${targetConfig}${els.includeCfgSave.checked ? " and save the zoning database" : ""}.`);
+      } else {
+        summary.push(`It will create new config ${targetConfig} by cloning the parsed active config ${fabric.activeConfigName || "(not found)"} and adding ${zoneName}, then enable ${targetConfig}${els.includeCfgSave.checked ? " and save the zoning database" : ""}.`);
+      }
+      if (fabric.warnings.length) {
+        summary.push("");
+        summary.push(`Warning: ${fabric.warnings[0]}`);
+      }
+
+      els.plainSummary.textContent = summary.join("\n");
+      els.commandOutput.value = commands.join("\n");
+      els.copyCommandsBtn.disabled = false;
+      els.downloadCommandsBtn.disabled = false;
+      autoSaveProject();
+    }
+
+    function updateConfigMode() {
+      const isNew = els.configMode.value === "new";
+      els.existingConfigWrap.classList.toggle("hidden", isNew);
+      els.newConfigWrap.classList.toggle("hidden", !isNew);
+    }
+
+    function clearAll() {
+      state.fabrics = [];
+      state.selected.clear();
+      state.visibleDeviceIds = [];
+      state.wwpnMatches = [];
+      [els.fabricAFile, els.fabricBFile, els.extraFiles, els.npivEvidenceFiles, els.restoreProjectFile].forEach((input) => { input.value = ""; });
+      els.deviceSearch.value = "";
+      els.activeZoneSearch.value = "";
+      els.npivEvidenceText.value = "";
+      els.wwpnBulkText.value = "";
+      els.wwpnBulkStatus.textContent = "No Windows WWPN output searched yet.";
+      els.wwpnBulkStatus.className = "hint";
+      els.zoneName.value = "";
+      els.newConfigName.value = "";
+      els.commandOutput.value = "";
+      els.plainSummary.textContent = "Select a fabric, choose devices, name the zone, and generate commands.";
+      els.copyCommandsBtn.disabled = true;
+      els.downloadCommandsBtn.disabled = true;
+      els.saveProjectBtn.disabled = true;
+      els.downloadWorkbookBtn.disabled = true;
+      renderAll();
+      localStorage.removeItem(PROJECT_STORAGE_KEY);
+      setStatus("No files loaded yet.", "");
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 500);
+    }
+
+    function downloadText(text, filename) {
+      downloadBlob(new Blob([text], { type: "text/plain;charset=utf-8" }), filename);
+    }
+
+    function csvSafe(value) {
+      const text = String(value == null ? "" : value);
+      return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    }
+
+    function xmlEscape(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function columnName(index) {
+      let name = "";
+      let number = index + 1;
+      while (number > 0) {
+        const mod = (number - 1) % 26;
+        name = String.fromCharCode(65 + mod) + name;
+        number = Math.floor((number - mod) / 26);
+      }
+      return name;
+    }
+
+    function sheetXml(rows) {
+      const rowXml = rows.map((row, rowIndex) => {
+        const r = rowIndex + 1;
+        const cells = row.map((cell, colIndex) => {
+          const ref = `${columnName(colIndex)}${r}`;
+          return `<c r="${ref}" t="inlineStr"><is><t>${xmlEscape(cell)}</t></is></c>`;
+        }).join("");
+        return `<row r="${r}">${cells}</row>`;
+      }).join("");
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+        `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+        `<sheetData>${rowXml}</sheetData></worksheet>`;
+    }
+
+    function makeWorkbookRows() {
+      const summary = [["Fabric", "File", "Switch", "Domain", "Switch WWN", "Active config", "Aliases", "Zones", "Configs", "Ports", "Warnings"]];
+      const devices = [["Fabric", "Alias or member", "Zone member used", "Resolved WWPNs", "Switch ports", "Existing zones", "Notes"]];
+      const aliases = [["Fabric", "Alias", "Members", "Resolved WWPNs", "Switch ports"]];
+      const zones = [["Fabric", "Zone", "Members", "In active config"]];
+      const configs = [["Fabric", "Config", "Members", "Active"]];
+      const ports = [["Fabric", "Switch", "Index", "Port", "Address", "Media", "Speed", "State", "Proto", "Details", "WWPNs"]];
+      const warnings = [["Fabric", "Warning"]];
+
+      state.fabrics.forEach((fabric) => {
+        summary.push([
+          fabric.fabricName,
+          fabric.fileName,
+          fabric.switchName,
+          fabric.switchDomain,
+          fabric.switchWwn,
+          fabric.activeConfigName,
+          fabric.aliases.length,
+          fabric.zones.length,
+          fabric.configs.length,
+          fabric.ports.length,
+          fabric.warnings.join(" | ")
+        ]);
+        fabric.devices.forEach((device) => {
+          devices.push([
+            fabric.fabricName,
+            device.alias === "Unaliased WWPN" ? device.wwpns[0] : device.alias,
+            device.zoneMember,
+            device.wwpns.join("; "),
+            device.ports.join("; "),
+            device.usedInZones.join("; "),
+            device.note
+          ]);
+        });
+        fabric.aliases.forEach((alias) => {
+          const device = fabric.devices.find((item) => item.type === "alias" && item.alias === alias.name);
+          aliases.push([
+            fabric.fabricName,
+            alias.name,
+            alias.members.join("; "),
+            device ? device.wwpns.join("; ") : "",
+            device ? device.ports.join("; ") : ""
+          ]);
+        });
+        fabric.zones.forEach((zone) => {
+          zones.push([
+            fabric.fabricName,
+            zone.name,
+            zone.members.join("; "),
+            fabric.activeZoneSet.has(zone.name.toLowerCase()) ? "yes" : "no"
+          ]);
+        });
+        fabric.configs.filter((config) => config.section === "defined").forEach((config) => {
+          configs.push([
+            fabric.fabricName,
+            config.name,
+            config.members.join("; "),
+            config.name === fabric.activeConfigName ? "yes" : "no"
+          ]);
+        });
+        fabric.ports.forEach((port) => {
+          ports.push([
+            fabric.fabricName,
+            port.switchName,
+            port.index,
+            port.port,
+            port.address,
+            port.media,
+            port.speed,
+            port.state,
+            port.proto,
+            port.details,
+            port.wwpns.join("; ")
+          ]);
+        });
+        fabric.warnings.forEach((warning) => warnings.push([fabric.fabricName, warning]));
+      });
+
+      return [
+        ["Summary", summary],
+        ["Devices", devices],
+        ["Aliases", aliases],
+        ["Zones", zones],
+        ["Configs", configs],
+        ["Switch Ports", ports],
+        ["Warnings", warnings]
+      ];
+    }
+
+    function buildXlsx() {
+      const sheets = makeWorkbookRows();
+      const contentTypes = [
+        `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`,
+        `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">`,
+        `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>`,
+        `<Default Extension="xml" ContentType="application/xml"/>`,
+        `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>`,
+        `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>`,
+        sheets.map((_, index) => `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join(""),
+        `</Types>`
+      ].join("");
+
+      const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+        `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+        `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>` +
+        `</Relationships>`;
+
+      const workbook = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+        `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
+        `<sheets>${sheets.map(([name], index) => `<sheet name="${xmlEscape(name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join("")}</sheets>` +
+        `</workbook>`;
+
+      const workbookRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+        `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+        sheets.map((_, index) => `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join("") +
+        `</Relationships>`;
+
+      const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+        `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+        `<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>` +
+        `<fills count="1"><fill><patternFill patternType="none"/></fill></fills>` +
+        `<borders count="1"><border/></borders>` +
+        `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
+        `<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>` +
+        `</styleSheet>`;
+
+      const files = [
+        { name: "[Content_Types].xml", data: contentTypes },
+        { name: "_rels/.rels", data: rels },
+        { name: "xl/workbook.xml", data: workbook },
+        { name: "xl/_rels/workbook.xml.rels", data: workbookRels },
+        { name: "xl/styles.xml", data: styles },
+        ...sheets.map(([, rows], index) => ({ name: `xl/worksheets/sheet${index + 1}.xml`, data: sheetXml(rows) }))
+      ];
+      return zipStore(files);
+    }
+
+    function crc32(bytes) {
+      let crc = -1;
+      for (let i = 0; i < bytes.length; i += 1) {
+        crc ^= bytes[i];
+        for (let j = 0; j < 8; j += 1) {
+          crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+        }
+      }
+      return (crc ^ -1) >>> 0;
+    }
+
+    function pushU16(parts, value) {
+      parts.push(value & 0xff, (value >>> 8) & 0xff);
+    }
+
+    function pushU32(parts, value) {
+      parts.push(value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff);
+    }
+
+    function dosDateTime(date) {
+      const time = ((date.getHours() & 0x1f) << 11) | ((date.getMinutes() & 0x3f) << 5) | ((Math.floor(date.getSeconds() / 2)) & 0x1f);
+      const day = Math.max(1, date.getDate());
+      const dosDate = (((date.getFullYear() - 1980) & 0x7f) << 9) | (((date.getMonth() + 1) & 0xf) << 5) | (day & 0x1f);
+      return { time, date: dosDate };
+    }
+
+    function zipStore(files) {
+      const encoder = new TextEncoder();
+      const chunks = [];
+      const central = [];
+      let offset = 0;
+      const stamp = dosDateTime(new Date());
+
+      files.forEach((file) => {
+        const nameBytes = encoder.encode(file.name);
+        const dataBytes = encoder.encode(file.data);
+        const crc = crc32(dataBytes);
+        const local = [];
+        pushU32(local, 0x04034b50);
+        pushU16(local, 20);
+        pushU16(local, 0);
+        pushU16(local, 0);
+        pushU16(local, stamp.time);
+        pushU16(local, stamp.date);
+        pushU32(local, crc);
+        pushU32(local, dataBytes.length);
+        pushU32(local, dataBytes.length);
+        pushU16(local, nameBytes.length);
+        pushU16(local, 0);
+        chunks.push(new Uint8Array(local), nameBytes, dataBytes);
+
+        const directory = [];
+        pushU32(directory, 0x02014b50);
+        pushU16(directory, 20);
+        pushU16(directory, 20);
+        pushU16(directory, 0);
+        pushU16(directory, 0);
+        pushU16(directory, stamp.time);
+        pushU16(directory, stamp.date);
+        pushU32(directory, crc);
+        pushU32(directory, dataBytes.length);
+        pushU32(directory, dataBytes.length);
+        pushU16(directory, nameBytes.length);
+        pushU16(directory, 0);
+        pushU16(directory, 0);
+        pushU16(directory, 0);
+        pushU16(directory, 0);
+        pushU32(directory, 0);
+        pushU32(directory, offset);
+        central.push(new Uint8Array(directory), nameBytes);
+
+        offset += local.length + nameBytes.length + dataBytes.length;
+      });
+
+      const centralOffset = offset;
+      const centralSize = central.reduce((sum, item) => sum + item.length, 0);
+      const end = [];
+      pushU32(end, 0x06054b50);
+      pushU16(end, 0);
+      pushU16(end, 0);
+      pushU16(end, files.length);
+      pushU16(end, files.length);
+      pushU32(end, centralSize);
+      pushU32(end, centralOffset);
+      pushU16(end, 0);
+      return new Blob([...chunks, ...central, new Uint8Array(end)], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      });
+    }
+
+    function downloadWorkbook() {
+      if (!state.fabrics.length) return;
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadBlob(buildXlsx(), `brocade-zoning-planner-${stamp}.xlsx`);
+    }
+
+    function fallbackCsvDownload() {
+      const rows = makeWorkbookRows()[1][1];
+      const csv = rows.map((row) => row.map(csvSafe).join(",")).join("\n");
+      downloadText(csv, "brocade-zoning-devices.csv");
+    }
+
+    function serializeFabric(fabric) {
+      return {
+        fileName: fabric.fileName,
+        labelHint: fabric.labelHint,
+        sourceText: fabric.sourceText || "",
+        supplementalInputs: fabric.supplementalInputs || [],
+        supplementalMappings: fabric.supplementalMappings || []
+      };
+    }
+
+    function buildProject() {
+      return {
+        app: "brocade-zoning-planner",
+        version: PROJECT_VERSION,
+        savedAt: new Date().toISOString(),
+        activeFabricIndex: state.activeFabricIndex,
+        selected: Array.from(state.selected),
+        wwpnMatches: state.wwpnMatches,
+        ui: {
+          activeZoneSearch: els.activeZoneSearch.value,
+          deviceSearch: els.deviceSearch.value,
+          wwpnBulkText: els.wwpnBulkText.value,
+          wwpnBulkStatus: els.wwpnBulkStatus.textContent,
+          zoneName: els.zoneName.value,
+          configMode: els.configMode.value,
+          existingConfig: els.existingConfig.value,
+          newConfigName: els.newConfigName.value,
+          includeCfgSave: els.includeCfgSave.checked,
+          plainSummary: els.plainSummary.textContent,
+          commandOutput: els.commandOutput.value,
+          npivImportStatus: els.npivImportStatus.textContent
+        },
+        fabrics: state.fabrics.map(serializeFabric)
+      };
+    }
+
+    function restoreFabric(savedFabric) {
+      const fabric = parseFabricText(savedFabric.sourceText || "", savedFabric.fileName || "restored-capture.txt", savedFabric.labelHint || "");
+      fabric.supplementalInputs = Array.isArray(savedFabric.supplementalInputs) ? savedFabric.supplementalInputs : [];
+      fabric.supplementalMappings = Array.isArray(savedFabric.supplementalMappings) ? savedFabric.supplementalMappings : [];
+      enrichFabric(fabric);
+      return fabric;
+    }
+
+    function restoreProject(project, sourceLabel) {
+      if (!project || project.app !== "brocade-zoning-planner" || !Array.isArray(project.fabrics)) {
+        throw new Error("This is not a Brocade Zoning Planner project JSON file.");
+      }
+      state.fabrics = project.fabrics.map(restoreFabric);
+      state.activeFabricIndex = Math.min(Math.max(Number(project.activeFabricIndex) || 0, 0), Math.max(state.fabrics.length - 1, 0));
+      state.selected = new Set(Array.isArray(project.selected) ? project.selected : []);
+      state.wwpnMatches = Array.isArray(project.wwpnMatches) ? project.wwpnMatches : [];
+      const ui = project.ui || {};
+      els.activeZoneSearch.value = ui.activeZoneSearch || "";
+      els.deviceSearch.value = ui.deviceSearch || "";
+      els.wwpnBulkText.value = ui.wwpnBulkText || "";
+      els.zoneName.value = ui.zoneName || "";
+      els.configMode.value = ui.configMode || "existing";
+      els.newConfigName.value = ui.newConfigName || "";
+      els.includeCfgSave.checked = ui.includeCfgSave !== false;
+      els.commandOutput.value = ui.commandOutput || "";
+      els.plainSummary.textContent = ui.plainSummary || "Select a fabric, choose devices, name the zone, and generate commands.";
+      renderAll();
+      if (ui.existingConfig) els.existingConfig.value = ui.existingConfig;
+      els.npivImportStatus.textContent = ui.npivImportStatus || `Restored ${state.fabrics.length} fabric capture${state.fabrics.length === 1 ? "" : "s"} from ${sourceLabel || "project JSON"}.`;
+      els.npivImportStatus.className = "notice ok";
+      if (els.wwpnBulkText.value) {
+        runBulkWwpnSearch({ tick: false, silent: true });
+      }
+      els.wwpnBulkStatus.textContent = ui.wwpnBulkStatus || (els.wwpnBulkText.value ? "Restored Windows WWPN output and refreshed matches." : "No Windows WWPN output searched yet.");
+      els.wwpnBulkStatus.className = els.wwpnBulkText.value ? "notice ok" : "hint";
+      els.copyCommandsBtn.disabled = !els.commandOutput.value;
+      els.downloadCommandsBtn.disabled = !els.commandOutput.value;
+      autoSaveProject();
+    }
+
+    function autoSaveProject() {
+      if (!state.autoSaveReady || !state.fabrics.length) return;
+      try {
+        localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(buildProject()));
+      } catch (error) {
+        console.warn("Could not save last project", error);
+      }
+    }
+
+    function saveProjectJson() {
+      if (!state.fabrics.length) return;
+      const project = JSON.stringify(buildProject(), null, 2);
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      downloadText(project, `brocade-zoning-planner-project-${stamp}.json`);
+      autoSaveProject();
+    }
+
+    async function restoreProjectFile() {
+      const file = els.restoreProjectFile.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        restoreProject(JSON.parse(text), file.name);
+        setStatus(`Restored project from ${file.name}.`, "ok");
+      } catch (error) {
+        console.error(error);
+        setStatus(`Could not restore project: ${error.message}`, "bad");
+      } finally {
+        els.restoreProjectFile.value = "";
+      }
+    }
+
+    function restoreLastProject() {
+      state.autoSaveReady = true;
+      try {
+        const saved = localStorage.getItem(PROJECT_STORAGE_KEY);
+        if (!saved) return;
+        restoreProject(JSON.parse(saved), "last browser project");
+        setStatus("Restored the last browser project.", "ok");
+      } catch (error) {
+        console.warn("Could not restore last project", error);
+        localStorage.removeItem(PROJECT_STORAGE_KEY);
+      }
+    }
+
+    function templateText(templateEl) {
+      return templateEl && templateEl.content ? templateEl.content.textContent.trim() : "";
+    }
+
+    function showReference(title, description, text, filename) {
+      els.referenceTitle.textContent = title;
+      els.referenceDescription.textContent = description;
+      els.referenceText.value = text;
+      state.referenceFilename = filename || "brocade-reference.txt";
+      if (typeof els.referenceDialog.showModal === "function") {
+        els.referenceDialog.showModal();
+        els.referenceText.focus();
+        els.referenceText.select();
+      } else {
+        window.alert(`${title}\n\n${text}`);
+      }
+    }
+
+    async function copyText(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const scratch = document.createElement("textarea");
+      scratch.value = text;
+      scratch.style.position = "fixed";
+      scratch.style.left = "-9999px";
+      document.body.appendChild(scratch);
+      scratch.focus();
+      scratch.select();
+      document.execCommand("copy");
+      scratch.remove();
+    }
+
+    function showHbaCommand() {
+      showReference(
+        "Windows HBA Search",
+        "Run in PowerShell on the Windows host. The initiator table is what the bulk selector parses; the adapter inventory helps confirm QLogic, Emulex/Broadcom, or other driver details.",
+        WINDOWS_HBA_COMMAND,
+        "windows-hba-search.ps1"
+      );
+    }
+
+    function showUidScript() {
+      showReference(
+        "Windows Disk UID Script",
+        "Attached Get-Disk UniqueId helper, preserved as PowerShell text.",
+        templateText(els.uidScriptTemplate),
+        "uid_WINDOWS.ps1"
+      );
+    }
+
+    function showNpivNotes() {
+      showReference(
+        "NPIV SCSI/NVMe Notes",
+        "Storage target port interpretation for lstargetportfc zoning choices.",
+        templateText(els.npivNotesTemplate),
+        "nvme_npiv_scsi_zoning_notes.txt"
+      );
+    }
+
+    els.hbaCommandBtn.addEventListener("click", showHbaCommand);
+    els.uidScriptBtn.addEventListener("click", showUidScript);
+    els.npivNotesBtn.addEventListener("click", showNpivNotes);
+    els.copyReferenceBtn.addEventListener("click", async () => {
+      await copyText(els.referenceText.value);
+    });
+    els.downloadReferenceBtn.addEventListener("click", () => {
+      downloadText(els.referenceText.value, state.referenceFilename);
+    });
+
+    els.saveProjectBtn.addEventListener("click", saveProjectJson);
+    els.restoreProjectBtn.addEventListener("click", () => {
+      els.restoreProjectFile.click();
+    });
+    els.restoreProjectFile.addEventListener("change", restoreProjectFile);
+    els.loadBtn.addEventListener("click", loadFiles);
+    els.clearBtn.addEventListener("click", clearAll);
+    els.fabricSelect.addEventListener("change", () => {
+      state.activeFabricIndex = Number(els.fabricSelect.value);
+      state.selected.clear();
+      els.commandOutput.value = "";
+      els.plainSummary.textContent = "Select devices, name the zone, and generate commands.";
+      els.activeZoneSearch.value = "";
+      state.wwpnMatches = [];
+      els.wwpnBulkStatus.textContent = "Run the Windows WWPN search again for this fabric.";
+      els.wwpnBulkStatus.className = "hint";
+      renderAll();
+      autoSaveProject();
+    });
+    els.npivFabricSelect.addEventListener("change", () => {
+      state.activeFabricIndex = Number(els.npivFabricSelect.value);
+      renderAll();
+      autoSaveProject();
+    });
+    els.wwpnFabricSelect.addEventListener("change", () => {
+      state.activeFabricIndex = Number(els.wwpnFabricSelect.value);
+      state.wwpnMatches = [];
+      els.wwpnBulkStatus.textContent = "Run the Windows WWPN search again for this fabric.";
+      els.wwpnBulkStatus.className = "hint";
+      renderAll();
+      autoSaveProject();
+    });
+    els.importNpivBtn.addEventListener("click", importNpivEvidence);
+    els.clearNpivTextBtn.addEventListener("click", () => {
+      els.npivEvidenceText.value = "";
+      els.npivEvidenceFiles.value = "";
+    });
+    els.tickWwpnMatchesBtn.addEventListener("click", () => {
+      runBulkWwpnSearch({ tick: true });
+    });
+    els.previewWwpnMatchesBtn.addEventListener("click", () => {
+      runBulkWwpnSearch({ tick: false });
+    });
+    els.clearWwpnTextBtn.addEventListener("click", () => {
+      els.wwpnBulkText.value = "";
+      state.wwpnMatches = [];
+      els.wwpnBulkStatus.textContent = "No Windows WWPN output searched yet.";
+      els.wwpnBulkStatus.className = "hint";
+      renderWwpnResults();
+      autoSaveProject();
+    });
+    els.wwpnBulkText.addEventListener("input", () => {
+      state.wwpnMatches = [];
+      els.wwpnBulkStatus.textContent = "Windows WWPN output changed. Run the search again.";
+      els.wwpnBulkStatus.className = "hint";
+      renderWwpnResults();
+      autoSaveProject();
+    });
+    els.activeZoneSearch.addEventListener("input", () => {
+      renderActiveConfig();
+      autoSaveProject();
+    });
+    els.deviceSearch.addEventListener("input", () => {
+      renderDevices();
+      autoSaveProject();
+    });
+    els.selectVisibleBtn.addEventListener("click", () => {
+      state.visibleDeviceIds.forEach((id) => state.selected.add(id));
+      renderDevices();
+      autoSaveProject();
+    });
+    els.clearSelectionBtn.addEventListener("click", () => {
+      state.selected.clear();
+      renderDevices();
+      autoSaveProject();
+    });
+    els.configMode.addEventListener("change", () => {
+      updateConfigMode();
+      autoSaveProject();
+    });
+    [els.zoneName, els.existingConfig, els.newConfigName, els.includeCfgSave].forEach((input) => {
+      input.addEventListener("input", autoSaveProject);
+      input.addEventListener("change", autoSaveProject);
+    });
+    els.generateBtn.addEventListener("click", generateCommands);
+    els.copyCommandsBtn.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(els.commandOutput.value);
+    });
+    els.downloadCommandsBtn.addEventListener("click", () => {
+      const zoneName = els.zoneName.value.trim() || "brocade-zone";
+      downloadText(els.commandOutput.value, `${zoneName}-commands.txt`);
+    });
+    els.downloadWorkbookBtn.addEventListener("click", () => {
+      try {
+        downloadWorkbook();
+      } catch (error) {
+        console.error(error);
+        fallbackCsvDownload();
+      }
+    });
+    restoreLastProject();
+  </script>
+</body>
+</html>
