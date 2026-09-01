@@ -550,10 +550,11 @@
         <div class="col-7">
           <h2>Prepare the switch captures</h2>
           <ol class="instruction-list">
-            <li>Use one text file per fabric. Capture one switch from Fabric A and one switch from Fabric B. Fabric A on its own is fine.</li>
+            <li>Use one main text file per fabric containing <code>alishow</code>. Fabric A on its own is fine.</li>
             <li>In PuTTY, increase scrollback first: <span class="inline-code">Window &gt; Lines of scrollback</span>, use at least <span class="inline-code">20000</span>; use more for large fabrics.</li>
             <li>Start logging to a plain text file before running the commands. Leave a blank line between command outputs if you are pasting manually.</li>
-            <li>Run <code>switchshow</code> on each switch in the fabric, then run <code>alishow</code> once. The optional extra command that would make NPIV port mapping easier is <code>nsshow</code>, especially where <code>switchshow</code> only says <code>1 N Port + X NPIV public</code>.</li>
+            <li>Run <code>switchshow</code> on each switch in the fabric, then run <code>alishow</code> once. If you only have one switch now, load that file first and add the other switch's <code>switchshow</code> output later in the additional switchshow panel.</li>
+            <li>The optional extra command that makes NPIV port mapping easier is <code>nsshow</code>, especially where <code>switchshow</code> only says <code>1 N Port + X NPIV public</code>.</li>
             <li>Do not edit out the <code>switchName</code>, <code>zoning: ON (...)</code>, <code>Defined configuration</code>, or <code>Effective configuration</code> lines.</li>
           </ol>
         </div>
@@ -569,9 +570,9 @@
               <input id="fabricBFile" type="file" accept=".txt,.log,text/plain">
             </div>
             <div class="col-12">
-              <label for="extraFiles">Or load one or more capture files</label>
+              <label for="extraFiles">Or load one or more complete fabric captures</label>
               <input id="extraFiles" type="file" accept=".txt,.log,text/plain" multiple>
-              <p class="hint">The parser uses the internal <span class="inline-code">Fabric:</span> and <span class="inline-code">switchName:</span> lines when they exist, so filenames and switch names can vary.</p>
+              <p class="hint">Use this for complete per-fabric captures. Use the additional switchshow panel below for switch-only captures from another switch in an already-loaded fabric.</p>
             </div>
             <div class="col-12 actions">
               <button id="loadBtn" type="button">Process files</button>
@@ -599,6 +600,30 @@
         <div class="stat"><span>Ports seen</span><strong id="statPorts">0</strong></div>
       </div>
       <div id="warningBox" class="notice hidden" style="margin-top:12px;"></div>
+    </section>
+
+    <section id="switchshowImportSection" class="hidden">
+      <div class="grid">
+        <div class="col-5">
+          <h2>Additional switchshow port maps</h2>
+          <p class="hint">Add <span class="inline-code">switchshow</span> captures from other switches in the same fabric. This updates WWPN-to-switch-port mapping without changing the fabric aliases, zones, or active config.</p>
+          <label for="switchshowFabricSelect">Fabric to update</label>
+          <select id="switchshowFabricSelect"></select>
+          <div style="margin-top:10px;">
+            <label for="switchshowFiles">Switchshow files</label>
+            <input id="switchshowFiles" type="file" accept=".txt,.log,text/plain" multiple>
+          </div>
+        </div>
+        <div class="col-7">
+          <label for="switchshowText">Paste switchshow output</label>
+          <textarea id="switchshowText" spellcheck="false" placeholder="Paste one or more switchshow outputs from other switches in this fabric."></textarea>
+          <div class="actions" style="margin-top:10px;">
+            <button id="importSwitchshowBtn" type="button">Import switchshow ports</button>
+            <button id="clearSwitchshowTextBtn" class="secondary" type="button">Clear switchshow text</button>
+            <span id="switchshowImportStatus" class="hint">No additional switchshow ports imported yet.</span>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section id="npivImportSection" class="hidden">
@@ -917,6 +942,7 @@ Interpretation:
       loadStatus: document.getElementById("loadStatus"),
       clearBtn: document.getElementById("clearBtn"),
       summarySection: document.getElementById("summarySection"),
+      switchshowImportSection: document.getElementById("switchshowImportSection"),
       npivImportSection: document.getElementById("npivImportSection"),
       wwpnBulkSection: document.getElementById("wwpnBulkSection"),
       activeConfigSection: document.getElementById("activeConfigSection"),
@@ -930,6 +956,12 @@ Interpretation:
       statZones: document.getElementById("statZones"),
       statPorts: document.getElementById("statPorts"),
       warningBox: document.getElementById("warningBox"),
+      switchshowFabricSelect: document.getElementById("switchshowFabricSelect"),
+      switchshowFiles: document.getElementById("switchshowFiles"),
+      switchshowText: document.getElementById("switchshowText"),
+      importSwitchshowBtn: document.getElementById("importSwitchshowBtn"),
+      clearSwitchshowTextBtn: document.getElementById("clearSwitchshowTextBtn"),
+      switchshowImportStatus: document.getElementById("switchshowImportStatus"),
       npivFabricSelect: document.getElementById("npivFabricSelect"),
       npivEvidenceFiles: document.getElementById("npivEvidenceFiles"),
       npivEvidenceText: document.getElementById("npivEvidenceText"),
@@ -1131,7 +1163,7 @@ Interpretation:
       return token;
     }
 
-    function parseSwitchPortLine(line, switchName) {
+    function parseSwitchPortLine(line, switchName, sourceName) {
       const match = line.match(/^\s*(\d+)\s+(\d+)\s+([0-9a-fA-F]{6})\s+(\S+)\s+(\S+)\s+(\S+)\s+(FC|--)\s*(.*)$/);
       if (!match) return null;
       const details = (match[8] || "").trim();
@@ -1149,9 +1181,97 @@ Interpretation:
         supplementalWwpns: [],
         wwpns,
         switchName: switchName || "",
+        source: sourceName || "",
         label: `${switchName || "switch"} port ${match[2]} (${match[3]})`
       };
       return port;
+    }
+
+    function refreshSwitchSummary(fabric) {
+      const primary = fabric.primarySwitchName || fabric.switchNames?.[0] || fabric.switchName || "";
+      fabric.switchNames = unique([primary, ...fabric.ports.map((port) => port.switchName)].filter(Boolean));
+      fabric.primarySwitchName = fabric.switchNames[0] || primary;
+      fabric.switchName = fabric.switchNames.length > 1
+        ? `${fabric.switchNames[0]} + ${fabric.switchNames.length - 1} more`
+        : fabric.switchNames[0] || "";
+    }
+
+    function switchPortKey(port) {
+      return [
+        String(port.switchName || "").toLowerCase(),
+        String(port.port || ""),
+        String(port.address || "").toLowerCase()
+      ].join("|");
+    }
+
+    function mergeSwitchshowPorts(fabric, ports) {
+      const existing = new Map(fabric.ports.map((port, index) => [switchPortKey(port), index]));
+      let added = 0;
+      let updated = 0;
+      ports.forEach((port) => {
+        const key = switchPortKey(port);
+        if (!key.replace(/\|/g, "")) return;
+        if (existing.has(key)) {
+          const current = fabric.ports[existing.get(key)];
+          Object.assign(current, port, {
+            supplementalWwpns: current.supplementalWwpns || [],
+            wwpns: unique(port.switchshowWwpns || port.wwpns || [])
+          });
+          updated += 1;
+          return;
+        }
+        fabric.ports.push(port);
+        existing.set(key, fabric.ports.length - 1);
+        added += 1;
+      });
+      refreshSwitchSummary(fabric);
+      return { added, updated };
+    }
+
+    function parseSwitchshowPorts(text, sourceName, fallbackSwitchName) {
+      const raw = normaliseNewlines(text);
+      const lines = raw.split("\n");
+      const ports = [];
+      let inSwitchShow = false;
+      let currentSwitchName = fallbackSwitchName || findFirst(/^\s*switchName:\s*(.+)$/im, raw) || "";
+
+      lines.forEach((line) => {
+        const trimmed = line.trim();
+        const promptSwitch = line.match(/^\s*([^:\s]+):.*>\s*switchshow\s*$/i);
+        if (promptSwitch || /^switchshow$/i.test(trimmed)) {
+          inSwitchShow = true;
+          if (promptSwitch) currentSwitchName = promptSwitch[1].trim();
+          return;
+        }
+        if (/>+\s*alishow\s*$/i.test(line) || /^Defined configuration:/i.test(trimmed) || /^Effective configuration:/i.test(trimmed)) {
+          inSwitchShow = false;
+          return;
+        }
+
+        const switchNameMatch = line.match(/^\s*switchName:\s*(.+)$/i);
+        if (switchNameMatch) {
+          currentSwitchName = switchNameMatch[1].trim();
+          inSwitchShow = true;
+          return;
+        }
+        if (/^Index\s+Port\s+Address\s+Media\s+Speed\s+State\s+Proto\b/i.test(trimmed)) {
+          inSwitchShow = true;
+          return;
+        }
+        if (!inSwitchShow) return;
+
+        const port = parseSwitchPortLine(line, currentSwitchName || fallbackSwitchName || "", sourceName);
+        if (port) ports.push(port);
+      });
+
+      return ports;
+    }
+
+    function replaySwitchshowInputs(fabric) {
+      const inputs = Array.isArray(fabric.switchshowInputs) ? fabric.switchshowInputs : [];
+      inputs.forEach((input) => {
+        mergeSwitchshowPorts(fabric, parseSwitchshowPorts(input.text || "", input.name || "additional switchshow", fabric.primarySwitchName || fabric.switchName));
+      });
     }
 
     function parseFabricText(text, fileName, labelHint) {
@@ -1161,6 +1281,7 @@ Interpretation:
         fileName,
         labelHint,
         sourceText: raw,
+        switchshowInputs: [],
         supplementalInputs: [],
         supplementalMappings: [],
         fabricName: findFirst(/^\s*Fabric:\s*(.+)$/im, raw) || labelHint || fileName || "Fabric",
@@ -1175,6 +1296,7 @@ Interpretation:
         effectiveZones: [],
         warnings: []
       };
+      fabric.primarySwitchName = fabric.switchName;
 
       let inSwitchShow = false;
       let currentSwitchName = fabric.switchName;
@@ -1230,7 +1352,7 @@ Interpretation:
             if (!fabric.switchName) fabric.switchName = currentSwitchName;
             return;
           }
-          const port = parseSwitchPortLine(line, currentSwitchName || fabric.switchName);
+          const port = parseSwitchPortLine(line, currentSwitchName || fabric.switchName, fileName);
           if (port) fabric.ports.push(port);
           return;
         }
@@ -1259,10 +1381,7 @@ Interpretation:
       });
       finishObject();
 
-      fabric.switchNames = unique([fabric.switchName, ...fabric.ports.map((port) => port.switchName)].filter(Boolean));
-      if (fabric.switchNames.length > 1) {
-        fabric.switchName = `${fabric.switchNames[0]} + ${fabric.switchNames.length - 1} more`;
-      }
+      refreshSwitchSummary(fabric);
       enrichFabric(fabric);
       return fabric;
     }
@@ -1424,8 +1543,10 @@ Interpretation:
 
     function enrichFabric(fabric) {
       fabric.warnings = [];
+      fabric.switchshowInputs = Array.isArray(fabric.switchshowInputs) ? fabric.switchshowInputs : [];
       fabric.supplementalInputs = Array.isArray(fabric.supplementalInputs) ? fabric.supplementalInputs : [];
       fabric.supplementalMappings = Array.isArray(fabric.supplementalMappings) ? fabric.supplementalMappings : [];
+      refreshSwitchSummary(fabric);
       fabric.aliasByName = new Map(fabric.aliases.map((item) => [item.name.toLowerCase(), item]));
       fabric.zoneByName = new Map(fabric.zones.map((item) => [item.name.toLowerCase(), item]));
       fabric.configByName = new Map(fabric.configs.map((item) => [item.name.toLowerCase(), item]));
@@ -1437,6 +1558,7 @@ Interpretation:
       applySupplementalMappings(fabric);
       fabric.portByWwpn = new Map();
       fabric.ports.forEach((port) => {
+        port.label = `${port.switchName || "switch"} port ${port.port} (${port.address})`;
         port.wwpns.forEach((wwpn) => {
           if (!fabric.portByWwpn.has(wwpn)) fabric.portByWwpn.set(wwpn, []);
           fabric.portByWwpn.get(wwpn).push(port);
@@ -1552,6 +1674,10 @@ Interpretation:
         state.activeFabricIndex = 0;
         state.selected.clear();
         state.wwpnMatches = [];
+        els.switchshowFiles.value = "";
+        els.switchshowText.value = "";
+        els.switchshowImportStatus.textContent = "No additional switchshow ports imported yet.";
+        els.switchshowImportStatus.className = "hint";
         els.wwpnBulkText.value = "";
         els.commandOutput.value = "";
         els.plainSummary.textContent = "Select devices, name the zone, and generate commands.";
@@ -1564,6 +1690,57 @@ Interpretation:
       } finally {
         els.loadBtn.disabled = false;
       }
+    }
+
+    async function importSwitchshowPorts() {
+      const fabric = state.fabrics[Number(els.switchshowFabricSelect.value)];
+      if (!fabric) {
+        els.switchshowImportStatus.textContent = "Load a fabric before importing additional switchshow output.";
+        els.switchshowImportStatus.className = "notice bad";
+        return;
+      }
+
+      const inputs = [];
+      const pasted = els.switchshowText.value.trim();
+      if (pasted) inputs.push({ name: "Pasted switchshow", text: pasted });
+      for (const file of Array.from(els.switchshowFiles.files || [])) {
+        inputs.push(await readFile(file));
+      }
+
+      if (!inputs.length) {
+        els.switchshowImportStatus.textContent = "Choose a file or paste switchshow output first.";
+        els.switchshowImportStatus.className = "notice bad";
+        return;
+      }
+
+      let added = 0;
+      let updated = 0;
+      const switches = [];
+      inputs.forEach((input) => {
+        const ports = parseSwitchshowPorts(input.text, input.name, fabric.primarySwitchName || fabric.switchName);
+        fabric.switchshowInputs.push({
+          name: input.name,
+          importedAt: new Date().toISOString(),
+          text: input.text,
+          portCount: ports.length,
+          switchNames: unique(ports.map((port) => port.switchName).filter(Boolean))
+        });
+        const result = mergeSwitchshowPorts(fabric, ports);
+        added += result.added;
+        updated += result.updated;
+        switches.push(...ports.map((port) => port.switchName).filter(Boolean));
+      });
+
+      enrichFabric(fabric);
+      state.activeFabricIndex = Number(els.switchshowFabricSelect.value);
+      state.wwpnMatches = [];
+      renderAll();
+      els.switchshowFiles.value = "";
+      els.switchshowText.value = "";
+      const switchText = unique(switches).join(", ") || "no switch names found";
+      els.switchshowImportStatus.textContent = `Imported ${added} new and refreshed ${updated} existing switch port row${added + updated === 1 ? "" : "s"} for ${fabric.fabricName}. Switches seen: ${switchText}.`;
+      els.switchshowImportStatus.className = added || updated ? "notice ok" : "notice";
+      autoSaveProject();
     }
 
     async function importNpivEvidence() {
@@ -1621,11 +1798,12 @@ Interpretation:
 
     function renderAll() {
       const hasData = state.fabrics.length > 0;
-      [els.summarySection, els.npivImportSection, els.wwpnBulkSection, els.activeConfigSection, els.deviceSection, els.commandSection].forEach((el) => el.classList.toggle("hidden", !hasData));
+      [els.summarySection, els.switchshowImportSection, els.npivImportSection, els.wwpnBulkSection, els.activeConfigSection, els.deviceSection, els.commandSection].forEach((el) => el.classList.toggle("hidden", !hasData));
       els.saveProjectBtn.disabled = !hasData;
       els.downloadWorkbookBtn.disabled = !hasData;
       if (!hasData) return;
       renderFabricSelect();
+      renderSwitchshowFabricSelect();
       renderNpivFabricSelect();
       renderWwpnFabricSelect();
       renderSummary();
@@ -1644,6 +1822,17 @@ Interpretation:
         els.fabricSelect.appendChild(option);
       });
       els.fabricSelect.value = String(state.activeFabricIndex);
+    }
+
+    function renderSwitchshowFabricSelect() {
+      els.switchshowFabricSelect.innerHTML = "";
+      state.fabrics.forEach((fabric, index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = `${fabric.fabricName || "Fabric"} - ${fabric.switchName || fabric.fileName}`;
+        els.switchshowFabricSelect.appendChild(option);
+      });
+      els.switchshowFabricSelect.value = String(state.activeFabricIndex);
     }
 
     function renderNpivFabricSelect() {
@@ -2025,9 +2214,12 @@ Interpretation:
       state.selected.clear();
       state.visibleDeviceIds = [];
       state.wwpnMatches = [];
-      [els.fabricAFile, els.fabricBFile, els.extraFiles, els.npivEvidenceFiles, els.restoreProjectFile].forEach((input) => { input.value = ""; });
+      [els.fabricAFile, els.fabricBFile, els.extraFiles, els.switchshowFiles, els.npivEvidenceFiles, els.restoreProjectFile].forEach((input) => { input.value = ""; });
       els.deviceSearch.value = "";
       els.activeZoneSearch.value = "";
+      els.switchshowText.value = "";
+      els.switchshowImportStatus.textContent = "No additional switchshow ports imported yet.";
+      els.switchshowImportStatus.className = "hint";
       els.npivEvidenceText.value = "";
       els.wwpnBulkText.value = "";
       els.wwpnBulkStatus.textContent = "No Windows WWPN output searched yet.";
@@ -2104,7 +2296,7 @@ Interpretation:
       const aliases = [["Fabric", "Alias", "Members", "Resolved WWPNs", "Switch ports"]];
       const zones = [["Fabric", "Zone", "Members", "In active config"]];
       const configs = [["Fabric", "Config", "Members", "Active"]];
-      const ports = [["Fabric", "Switch", "Index", "Port", "Address", "Media", "Speed", "State", "Proto", "Details", "WWPNs"]];
+      const ports = [["Fabric", "Switch", "Index", "Port", "Address", "Media", "Speed", "State", "Proto", "Details", "WWPNs", "Source"]];
       const warnings = [["Fabric", "Warning"]];
 
       state.fabrics.forEach((fabric) => {
@@ -2170,7 +2362,8 @@ Interpretation:
             port.state,
             port.proto,
             port.details,
-            port.wwpns.join("; ")
+            port.wwpns.join("; "),
+            port.source || ""
           ]);
         });
         fabric.warnings.forEach((warning) => warnings.push([fabric.fabricName, warning]));
@@ -2342,6 +2535,7 @@ Interpretation:
         fileName: fabric.fileName,
         labelHint: fabric.labelHint,
         sourceText: fabric.sourceText || "",
+        switchshowInputs: fabric.switchshowInputs || [],
         supplementalInputs: fabric.supplementalInputs || [],
         supplementalMappings: fabric.supplementalMappings || []
       };
@@ -2358,6 +2552,8 @@ Interpretation:
         ui: {
           activeZoneSearch: els.activeZoneSearch.value,
           deviceSearch: els.deviceSearch.value,
+          switchshowImportStatus: els.switchshowImportStatus.textContent,
+          switchshowText: els.switchshowText.value,
           wwpnBulkText: els.wwpnBulkText.value,
           wwpnBulkStatus: els.wwpnBulkStatus.textContent,
           zoneName: els.zoneName.value,
@@ -2375,6 +2571,8 @@ Interpretation:
 
     function restoreFabric(savedFabric) {
       const fabric = parseFabricText(savedFabric.sourceText || "", savedFabric.fileName || "restored-capture.txt", savedFabric.labelHint || "");
+      fabric.switchshowInputs = Array.isArray(savedFabric.switchshowInputs) ? savedFabric.switchshowInputs : [];
+      replaySwitchshowInputs(fabric);
       fabric.supplementalInputs = Array.isArray(savedFabric.supplementalInputs) ? savedFabric.supplementalInputs : [];
       fabric.supplementalMappings = Array.isArray(savedFabric.supplementalMappings) ? savedFabric.supplementalMappings : [];
       enrichFabric(fabric);
@@ -2392,6 +2590,7 @@ Interpretation:
       const ui = project.ui || {};
       els.activeZoneSearch.value = ui.activeZoneSearch || "";
       els.deviceSearch.value = ui.deviceSearch || "";
+      els.switchshowText.value = ui.switchshowText || "";
       els.wwpnBulkText.value = ui.wwpnBulkText || "";
       els.zoneName.value = ui.zoneName || "";
       els.configMode.value = ui.configMode || "existing";
@@ -2401,6 +2600,11 @@ Interpretation:
       els.plainSummary.textContent = ui.plainSummary || "Select a fabric, choose devices, name the zone, and generate commands.";
       renderAll();
       if (ui.existingConfig) els.existingConfig.value = ui.existingConfig;
+      const restoredSwitchshowInputs = state.fabrics.reduce((sum, fabric) => sum + (fabric.switchshowInputs || []).length, 0);
+      els.switchshowImportStatus.textContent = ui.switchshowImportStatus || (restoredSwitchshowInputs
+        ? `Restored ${restoredSwitchshowInputs} additional switchshow input${restoredSwitchshowInputs === 1 ? "" : "s"}.`
+        : "No additional switchshow ports imported yet.");
+      els.switchshowImportStatus.className = restoredSwitchshowInputs ? "notice ok" : "hint";
       els.npivImportStatus.textContent = ui.npivImportStatus || `Restored ${state.fabrics.length} fabric capture${state.fabrics.length === 1 ? "" : "s"} from ${sourceLabel || "project JSON"}.`;
       els.npivImportStatus.className = "notice ok";
       if (els.wwpnBulkText.value) {
@@ -2551,6 +2755,18 @@ Interpretation:
     els.npivFabricSelect.addEventListener("change", () => {
       state.activeFabricIndex = Number(els.npivFabricSelect.value);
       renderAll();
+      autoSaveProject();
+    });
+    els.switchshowFabricSelect.addEventListener("change", () => {
+      state.activeFabricIndex = Number(els.switchshowFabricSelect.value);
+      state.wwpnMatches = [];
+      renderAll();
+      autoSaveProject();
+    });
+    els.importSwitchshowBtn.addEventListener("click", importSwitchshowPorts);
+    els.clearSwitchshowTextBtn.addEventListener("click", () => {
+      els.switchshowText.value = "";
+      els.switchshowFiles.value = "";
       autoSaveProject();
     });
     els.wwpnFabricSelect.addEventListener("change", () => {
