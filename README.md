@@ -15,7 +15,7 @@ Browser-only Brocade SAN zoning planner.
 - Exports parsed data as an XLSX workbook.
 - Saves and restores complete project state as JSON, with browser memory of the last project.
 - Bulk-selects aliases from pasted Windows `Get-InitiatorPort` WWPN output.
-- Builds an OS disk to Storwize/FlashSystem volume mapping list by matching Windows disk UniqueId values to `lshostvdiskmap` `vdisk_UID` values.
+- Builds an OS disk, drive-letter, or mount-point to Storwize/FlashSystem volume mapping list by matching Windows disk UniqueId values to `lshostvdiskmap` `vdisk_UID` values.
 
 ## Using It
 
@@ -49,7 +49,7 @@ The tool does not run commands on switches. It only parses captures and prepares
 
 ## OS Disk To Storwize Volume Mapping
 
-On the Windows host, run the **Windows UID script** from the tool and paste the output into the OS UID box.
+On the Windows host, run the **Windows UID script** from the tool and paste the output into the OS UID box. The script captures disk number, disk friendly name, drive letters, mounted-folder access paths, volume labels, and disk UID. It can also export CSV with the same fields.
 
 On IBM Storage Virtualize / Storwize / FlashSystem, run the **Storwize UID commands** from the tool. The key command is:
 
@@ -63,4 +63,4 @@ You can run it for all mappings or for one host:
 lshostvdiskmap -delim : <host_name_or_id>
 ```
 
-Paste the storage output into the Storwize box and build the map. The output list is keyed by UID and includes OS disk number, OS disk name, OS UID, Storwize volume name, Storwize volume ID, host, and SCSI/LUN ID.
+Paste the storage output into the Storwize box and build the map. The output list is keyed by UID and includes OS disk number, OS disk name, drive letters, mount points, volume labels, OS UID, Storwize volume name, Storwize volume ID, host, and SCSI/LUN ID.

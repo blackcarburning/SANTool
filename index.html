@@ -588,7 +588,7 @@
       <div class="grid">
         <div class="col-4">
           <h2>OS to Storwize volume mapper</h2>
-          <p class="hint">Paste Windows disk UID output and Storwize mapped-volume output. The mapper normalises UIDs and builds an OS disk to Storwize volume list keyed by UID.</p>
+          <p class="hint">Paste Windows disk UID output and Storwize mapped-volume output. The mapper normalises UIDs and builds an OS disk or mount point to Storwize volume list keyed by UID.</p>
           <div style="margin-top:10px;">
             <label for="osUidFiles">OS UID files</label>
             <input id="osUidFiles" type="file" accept=".txt,.log,.csv,text/plain,text/csv" multiple>
@@ -609,7 +609,7 @@
         </div>
         <div class="col-4">
           <label for="osUidText">Windows OS disk UID output</label>
-          <textarea id="osUidText" spellcheck="false" placeholder="Paste Windows UID script output here. Example: 0 : IBM 2145 : 600507680C8084A8..."></textarea>
+          <textarea id="osUidText" spellcheck="false" placeholder="Paste Windows UID script output here. Example: 1 | IBM 2145 | E: | C:\Mounts\Data01\ | SQLDATA | 600507680C8084A8..."></textarea>
         </div>
         <div class="col-4">
           <label for="storwizeUidText">Storwize mapped-volume output</label>
@@ -627,6 +627,9 @@
                   <th>UID key</th>
                   <th>OS disk</th>
                   <th>OS name</th>
+                  <th>Drive letters</th>
+                  <th>Mount points</th>
+                  <th>Volume labels</th>
                   <th>OS UID</th>
                   <th>Storwize volume</th>
                   <th>Storwize ID</th>
@@ -863,14 +866,16 @@
 
   <template id="uidScriptTemplate"><#
 .SYNOPSIS
-    Prints Windows disk number, friendly name, and disk UID.
+    Prints Windows disk number, friendly name, drive letters, mount points, volume labels, and disk UID.
 
 .DESCRIPTION
-    Outputs one disk per row, sorted by Windows disk number.
+    Outputs one disk per row, sorted by Windows disk number. Use this with the
+    SANTool OS to Storwize volume mapper. The mapper matches the UID to
+    lshostvdiskmap vdisk_UID and carries the OS volume details into the output.
 
 .EXAMPLE
-    0 : DELL PERC H730 Mini : 600508B1001C3D4E...
-    1 : IBM 2145            : 600507680C8084A8...
+    DiskID | Name     | DriveLetters | MountPoints        | VolumeLabels | UID
+    1      | IBM 2145 | E:           | C:\Mounts\Data01\  | SQLDATA      | 600507680C8084A8...
 #>
 
 [CmdletBinding()]
@@ -880,21 +885,88 @@ param (
 
 $ErrorActionPreference = 'Stop'
 
+function Join-ValueList {
+    param (
+        [object[]]$Values,
+        [string]$Separator = '; '
+    )
+
+    $cleaned = @($Values) |
+        Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+        ForEach-Object { ([string]$_).Trim() -replace '\|', '/' -replace '\s+', ' ' } |
+        Sort-Object -Unique
+
+    return ($cleaned -join $Separator)
+}
+
+function Get-DiskVolumeDetail {
+    param (
+        [Parameter(Mandatory)]
+        [object]$Disk
+    )
+
+    $partitions = @()
+    try {
+        $partitions = @(Get-Partition -DiskNumber $Disk.Number -ErrorAction SilentlyContinue)
+    }
+    catch {
+        $partitions = @()
+    }
+
+    $driveLetters = @(
+        $partitions |
+            Where-Object { $_.DriveLetter } |
+            ForEach-Object { "$($_.DriveLetter):" }
+    )
+
+    $accessPaths = foreach ($partition in $partitions) {
+        @($partition.AccessPaths)
+    }
+
+    $mountPoints = @(
+        $accessPaths |
+            Where-Object {
+                $_ -and
+                ($_ -notmatch '^[A-Za-z]:\\?$') -and
+                ($_ -notmatch '^\\\\\?\\Volume')
+            }
+    )
+
+    $volumeLabels = foreach ($partition in $partitions) {
+        try {
+            $partition |
+                Get-Volume -ErrorAction SilentlyContinue |
+                Select-Object -ExpandProperty FileSystemLabel
+        }
+        catch {
+        }
+    }
+
+    [pscustomobject]@{
+        DiskID       = $Disk.Number
+        Name         = $Disk.FriendlyName
+        DriveLetters = Join-ValueList -Values $driveLetters -Separator ', '
+        MountPoints  = Join-ValueList -Values $mountPoints -Separator '; '
+        VolumeLabels = Join-ValueList -Values $volumeLabels -Separator '; '
+        UID          = $Disk.UniqueId
+    }
+}
+
 try {
     $results = Get-Disk |
         Sort-Object Number |
-        Select-Object `
-            @{Name = 'DiskID'; Expression = { $_.Number }},
-            @{Name = 'Name';   Expression = { $_.FriendlyName }},
-            @{Name = 'UID';    Expression = { $_.UniqueId }}
+        ForEach-Object { Get-DiskVolumeDetail -Disk $_ }
 
-    Write-Output 'DiskID : Name : UID'
-    Write-Output '-------------------'
+    Write-Output 'DiskID | Name | DriveLetters | MountPoints | VolumeLabels | UID'
+    Write-Output '-------------------------------------------------------------'
 
     foreach ($disk in $results) {
-        Write-Output ('{0} : {1} : {2}' -f `
+        Write-Output ('{0} | {1} | {2} | {3} | {4} | {5}' -f `
             $disk.DiskID,
             $disk.Name,
+            $disk.DriveLetters,
+            $disk.MountPoints,
+            $disk.VolumeLabels,
             $disk.UID)
     }
 
@@ -1168,25 +1240,60 @@ Interpretation:
       return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
     }
 
+    function splitPipeLine(line) {
+      return line.split("|").map((item) => item.trim());
+    }
+
+    function firstHeaderIndex(headers, names) {
+      for (const name of names) {
+        const index = headers.indexOf(name);
+        if (index >= 0) return index;
+      }
+      return -1;
+    }
+
     function parseOsDiskUidOutput(text) {
       const lines = normaliseNewlines(text).split("\n");
       const rows = [];
       const seen = new Set();
-      let csvHeaders = null;
+      let table = null;
 
       function addRow(row) {
         const key = uidKey(row.uid);
         if (!key) return;
         const diskNumber = String(row.diskNumber || "").trim();
         const diskName = String(row.diskName || "").trim();
+        const driveLetters = String(row.driveLetters || "").trim();
+        const mountPoints = String(row.mountPoints || "").trim();
+        const volumeLabels = String(row.volumeLabels || "").trim();
         const dedupe = `${diskNumber}|${diskName.toLowerCase()}|${key}`;
         if (seen.has(dedupe)) return;
         seen.add(dedupe);
         rows.push({
           diskNumber,
           diskName,
+          driveLetters,
+          mountPoints,
+          volumeLabels,
           osUid: String(row.uid || "").trim(),
           uidKey: key
+        });
+      }
+
+      function addDelimitedRow(columns, headers) {
+        const uidIndex = firstHeaderIndex(headers, ["uid", "uniqueid", "unique_id"]);
+        const idIndex = firstHeaderIndex(headers, ["diskid", "disk_id", "disk_number", "number"]);
+        const nameIndex = firstHeaderIndex(headers, ["name", "disk_name", "friendlyname", "friendly_name"]);
+        const driveIndex = firstHeaderIndex(headers, ["driveletters", "drive_letters", "driveletter", "drive_letter"]);
+        const mountIndex = firstHeaderIndex(headers, ["mountpoints", "mount_points", "mountpoint", "mount_point", "accesspaths", "access_paths"]);
+        const labelIndex = firstHeaderIndex(headers, ["volumelabels", "volume_labels", "volumelabel", "volume_label", "label", "labels"]);
+        addRow({
+          diskNumber: idIndex >= 0 ? columns[idIndex] : "",
+          diskName: nameIndex >= 0 ? columns[nameIndex] : "",
+          driveLetters: driveIndex >= 0 ? columns[driveIndex] : "",
+          mountPoints: mountIndex >= 0 ? columns[mountIndex] : "",
+          volumeLabels: labelIndex >= 0 ? columns[labelIndex] : "",
+          uid: uidIndex >= 0 ? columns[uidIndex] : ""
         });
       }
 
@@ -1194,22 +1301,28 @@ Interpretation:
         const trimmed = line.trim();
         if (!trimmed || /^[-\s:]+$/.test(trimmed) || /^DiskID\s*:/i.test(trimmed)) return;
 
+        if (trimmed.includes("|")) {
+          const columns = splitPipeLine(trimmed);
+          const headers = columns.map(normaliseHeaderName);
+          if (headers.includes("uid") || headers.includes("uniqueid") || headers.includes("unique_id")) {
+            table = { delimiter: "|", headers };
+            return;
+          }
+          if (table && table.delimiter === "|") {
+            addDelimitedRow(columns, table.headers);
+            return;
+          }
+        }
+
         if (trimmed.includes(",")) {
           const columns = parseCsvLine(trimmed);
           const normalised = columns.map(normaliseHeaderName);
-          if (normalised.includes("uid") || normalised.includes("uniqueid")) {
-            csvHeaders = normalised;
+          if (normalised.includes("uid") || normalised.includes("uniqueid") || normalised.includes("unique_id")) {
+            table = { delimiter: ",", headers: normalised };
             return;
           }
-          if (csvHeaders) {
-            const uidIndex = Math.max(csvHeaders.indexOf("uid"), csvHeaders.indexOf("uniqueid"));
-            const idIndex = Math.max(csvHeaders.indexOf("diskid"), csvHeaders.indexOf("number"));
-            const nameIndex = Math.max(csvHeaders.indexOf("name"), csvHeaders.indexOf("friendlyname"));
-            addRow({
-              diskNumber: idIndex >= 0 ? columns[idIndex] : "",
-              diskName: nameIndex >= 0 ? columns[nameIndex] : "",
-              uid: uidIndex >= 0 ? columns[uidIndex] : ""
-            });
+          if (table && table.delimiter === ",") {
+            addDelimitedRow(columns, table.headers);
             return;
           }
         }
@@ -2010,12 +2123,15 @@ Interpretation:
 
     function volumeMappingCsvRows() {
       return [
-        ["Match", "UID key", "OS disk number", "OS disk name", "OS UID", "Storwize volume name", "Storwize volume ID", "Storwize UID", "Host name", "Host ID", "SCSI/LUN ID", "I/O group", "Notes"],
+        ["Match", "UID key", "OS disk number", "OS disk name", "OS drive letters", "OS mount points", "OS volume labels", "OS UID", "Storwize volume name", "Storwize volume ID", "Storwize UID", "Host name", "Host ID", "SCSI/LUN ID", "I/O group", "Notes"],
         ...state.volumeMappings.map((row) => [
           row.match,
           row.uidKey,
           row.disk ? row.disk.diskNumber : "",
           row.disk ? row.disk.diskName : "",
+          row.disk ? row.disk.driveLetters || "" : "",
+          row.disk ? row.disk.mountPoints || "" : "",
+          row.disk ? row.disk.volumeLabels || "" : "",
           row.disk ? row.disk.osUid : "",
           row.volume ? row.volume.volumeName : "",
           row.volume ? row.volume.volumeId : "",
@@ -2040,7 +2156,7 @@ Interpretation:
       if (!state.volumeMappings.length) {
         const tr = document.createElement("tr");
         const td = document.createElement("td");
-        td.colSpan = 10;
+        td.colSpan = 13;
         td.textContent = "No OS to Storwize mappings built yet.";
         tr.appendChild(td);
         els.volumeMapRows.appendChild(tr);
@@ -2064,6 +2180,12 @@ Interpretation:
         osDiskTd.textContent = row.disk ? row.disk.diskNumber : "";
         const osNameTd = document.createElement("td");
         osNameTd.textContent = row.disk ? row.disk.diskName : "";
+        const driveLettersTd = document.createElement("td");
+        driveLettersTd.textContent = row.disk ? row.disk.driveLetters || "" : "";
+        const mountPointsTd = document.createElement("td");
+        mountPointsTd.textContent = row.disk ? row.disk.mountPoints || "" : "";
+        const volumeLabelsTd = document.createElement("td");
+        volumeLabelsTd.textContent = row.disk ? row.disk.volumeLabels || "" : "";
         const osUidTd = document.createElement("td");
         osUidTd.className = "wwpn";
         osUidTd.textContent = row.disk ? row.disk.osUid : "";
@@ -2079,7 +2201,7 @@ Interpretation:
         const noteTd = document.createElement("td");
         noteTd.textContent = row.note || "";
 
-        tr.append(matchTd, uidTd, osDiskTd, osNameTd, osUidTd, volNameTd, volIdTd, hostTd, scsiTd, noteTd);
+        tr.append(matchTd, uidTd, osDiskTd, osNameTd, driveLettersTd, mountPointsTd, volumeLabelsTd, osUidTd, volNameTd, volIdTd, hostTd, scsiTd, noteTd);
         fragment.appendChild(tr);
       });
       els.volumeMapRows.appendChild(fragment);
@@ -3164,7 +3286,7 @@ Interpretation:
     function showUidScript() {
       showReference(
         "Windows Disk UID Script",
-        "Attached Get-Disk UniqueId helper, preserved as PowerShell text.",
+        "Run in PowerShell on the Windows host. It captures disk number, disk name, drive letters, mounted-folder paths, volume labels, and UniqueId for the Storwize mapper.",
         templateText(els.uidScriptTemplate),
         "uid_WINDOWS.ps1"
       );
