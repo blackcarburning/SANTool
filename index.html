@@ -534,6 +534,7 @@
       <div class="actions">
         <button id="hbaCommandBtn" class="secondary" type="button">Windows HBA search</button>
         <button id="uidScriptBtn" class="secondary" type="button">Windows UID script</button>
+        <button id="storwizeCommandBtn" class="secondary" type="button">Storwize UID commands</button>
         <button id="npivNotesBtn" class="secondary" type="button">NPIV notes</button>
         <button id="saveProjectBtn" class="secondary" type="button" disabled>Save JSON</button>
         <button id="restoreProjectBtn" class="secondary" type="button">Restore JSON</button>
@@ -578,6 +579,64 @@
               <button id="loadBtn" type="button">Process files</button>
               <span id="loadStatus" class="hint">No files loaded yet.</span>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="volumeMapSection">
+      <div class="grid">
+        <div class="col-4">
+          <h2>OS to Storwize volume mapper</h2>
+          <p class="hint">Paste Windows disk UID output and Storwize mapped-volume output. The mapper normalises UIDs and builds an OS disk to Storwize volume list keyed by UID.</p>
+          <div style="margin-top:10px;">
+            <label for="osUidFiles">OS UID files</label>
+            <input id="osUidFiles" type="file" accept=".txt,.log,.csv,text/plain,text/csv" multiple>
+          </div>
+          <div style="margin-top:10px;">
+            <label for="storwizeUidFiles">Storwize mapping files</label>
+            <input id="storwizeUidFiles" type="file" accept=".txt,.log,.csv,text/plain,text/csv" multiple>
+          </div>
+          <div class="actions" style="margin-top:10px;">
+            <button id="processVolumeMapBtn" type="button">Build volume map</button>
+            <button id="clearVolumeMapBtn" class="secondary" type="button">Clear mapper</button>
+          </div>
+          <div class="actions" style="margin-top:10px;">
+            <button id="copyVolumeMapBtn" class="secondary" type="button" disabled>Copy CSV</button>
+            <button id="downloadVolumeMapBtn" class="secondary" type="button" disabled>Download CSV</button>
+          </div>
+          <div id="volumeMapStatus" class="hint">No OS or Storwize UID output processed yet.</div>
+        </div>
+        <div class="col-4">
+          <label for="osUidText">Windows OS disk UID output</label>
+          <textarea id="osUidText" spellcheck="false" placeholder="Paste Windows UID script output here. Example: 0 : IBM 2145 : 600507680C8084A8..."></textarea>
+        </div>
+        <div class="col-4">
+          <label for="storwizeUidText">Storwize mapped-volume output</label>
+          <textarea id="storwizeUidText" spellcheck="false" placeholder="Paste lshostvdiskmap -delim : output here."></textarea>
+        </div>
+        <div class="col-12">
+          <div id="volumeMapSummary" class="summary-text">Paste both outputs and build the mapping list.</div>
+        </div>
+        <div class="col-12">
+          <div class="table-wrap short">
+            <table>
+              <thead>
+                <tr>
+                  <th>Match</th>
+                  <th>UID key</th>
+                  <th>OS disk</th>
+                  <th>OS name</th>
+                  <th>OS UID</th>
+                  <th>Storwize volume</th>
+                  <th>Storwize ID</th>
+                  <th>Host</th>
+                  <th>SCSI/LUN</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="volumeMapRows"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -902,6 +961,20 @@ Interpretation:
       "  Format-List"
     ].join("\n");
 
+    const STORWIZE_UID_COMMANDS = [
+      "# IBM Storage Virtualize / Storwize / FlashSystem mapped-volume UID collection",
+      "# Run from the storage CLI. If your SSH shell requires svcinfo, prefix the commands with svcinfo.",
+      "",
+      "# Optional: list host names first, so you can choose the right host.",
+      "lshost -delim :",
+      "",
+      "# Preferred: all host-to-volume mappings, including vdisk_id, vdisk_name, and vdisk_UID.",
+      "lshostvdiskmap -delim :",
+      "",
+      "# Or, for one host only:",
+      "lshostvdiskmap -delim : <host_name_or_id>"
+    ].join("\n");
+
     const VENDOR_PREFIX_HINTS = [
       { prefixes: ["51402ec0", "20000024ff", "21000024ff", "2001000e1e"], name: "Likely QLogic/Marvell", note: "WWN prefix hint" },
       { prefixes: ["10000000c9", "20000000c9", "10000090fa", "20000090fa", "10000090fb", "20000090fb", "1000e007", "2000e007"], name: "Likely Emulex/Broadcom", note: "WWN prefix hint" },
@@ -916,6 +989,7 @@ Interpretation:
       selected: new Set(),
       visibleDeviceIds: [],
       wwpnMatches: [],
+      volumeMappings: [],
       referenceFilename: "brocade-reference.txt",
       autoSaveReady: false
     };
@@ -926,6 +1000,7 @@ Interpretation:
       extraFiles: document.getElementById("extraFiles"),
       hbaCommandBtn: document.getElementById("hbaCommandBtn"),
       uidScriptBtn: document.getElementById("uidScriptBtn"),
+      storwizeCommandBtn: document.getElementById("storwizeCommandBtn"),
       npivNotesBtn: document.getElementById("npivNotesBtn"),
       saveProjectBtn: document.getElementById("saveProjectBtn"),
       restoreProjectBtn: document.getElementById("restoreProjectBtn"),
@@ -941,6 +1016,18 @@ Interpretation:
       loadBtn: document.getElementById("loadBtn"),
       loadStatus: document.getElementById("loadStatus"),
       clearBtn: document.getElementById("clearBtn"),
+      volumeMapSection: document.getElementById("volumeMapSection"),
+      osUidFiles: document.getElementById("osUidFiles"),
+      storwizeUidFiles: document.getElementById("storwizeUidFiles"),
+      osUidText: document.getElementById("osUidText"),
+      storwizeUidText: document.getElementById("storwizeUidText"),
+      processVolumeMapBtn: document.getElementById("processVolumeMapBtn"),
+      clearVolumeMapBtn: document.getElementById("clearVolumeMapBtn"),
+      copyVolumeMapBtn: document.getElementById("copyVolumeMapBtn"),
+      downloadVolumeMapBtn: document.getElementById("downloadVolumeMapBtn"),
+      volumeMapStatus: document.getElementById("volumeMapStatus"),
+      volumeMapSummary: document.getElementById("volumeMapSummary"),
+      volumeMapRows: document.getElementById("volumeMapRows"),
       summarySection: document.getElementById("summarySection"),
       switchshowImportSection: document.getElementById("switchshowImportSection"),
       npivImportSection: document.getElementById("npivImportSection"),
@@ -1046,6 +1133,226 @@ Interpretation:
       const colonWwpns = (source.match(WWPN_RE) || []).map((item) => canonicalWwpn(item));
       const compactWwpns = (source.match(COMPACT_WWPN_RE) || []).map((item) => canonicalWwpn(item));
       return unique([...colonWwpns, ...compactWwpns].filter(Boolean));
+    }
+
+    function uidKey(value) {
+      const compact = String(value || "").replace(/[^0-9a-fA-F]/g, "").toUpperCase();
+      const match = compact.match(/[0-9A-F]{32,}/);
+      return match ? match[0].slice(0, 32) : "";
+    }
+
+    function parseCsvLine(line) {
+      const values = [];
+      let current = "";
+      let inQuote = false;
+      for (let i = 0; i < line.length; i += 1) {
+        const char = line[i];
+        const next = line[i + 1];
+        if (char === '"' && inQuote && next === '"') {
+          current += '"';
+          i += 1;
+        } else if (char === '"') {
+          inQuote = !inQuote;
+        } else if (char === "," && !inQuote) {
+          values.push(current);
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+      values.push(current);
+      return values.map((item) => item.trim());
+    }
+
+    function normaliseHeaderName(value) {
+      return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    }
+
+    function parseOsDiskUidOutput(text) {
+      const lines = normaliseNewlines(text).split("\n");
+      const rows = [];
+      const seen = new Set();
+      let csvHeaders = null;
+
+      function addRow(row) {
+        const key = uidKey(row.uid);
+        if (!key) return;
+        const diskNumber = String(row.diskNumber || "").trim();
+        const diskName = String(row.diskName || "").trim();
+        const dedupe = `${diskNumber}|${diskName.toLowerCase()}|${key}`;
+        if (seen.has(dedupe)) return;
+        seen.add(dedupe);
+        rows.push({
+          diskNumber,
+          diskName,
+          osUid: String(row.uid || "").trim(),
+          uidKey: key
+        });
+      }
+
+      lines.forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed || /^[-\s:]+$/.test(trimmed) || /^DiskID\s*:/i.test(trimmed)) return;
+
+        if (trimmed.includes(",")) {
+          const columns = parseCsvLine(trimmed);
+          const normalised = columns.map(normaliseHeaderName);
+          if (normalised.includes("uid") || normalised.includes("uniqueid")) {
+            csvHeaders = normalised;
+            return;
+          }
+          if (csvHeaders) {
+            const uidIndex = Math.max(csvHeaders.indexOf("uid"), csvHeaders.indexOf("uniqueid"));
+            const idIndex = Math.max(csvHeaders.indexOf("diskid"), csvHeaders.indexOf("number"));
+            const nameIndex = Math.max(csvHeaders.indexOf("name"), csvHeaders.indexOf("friendlyname"));
+            addRow({
+              diskNumber: idIndex >= 0 ? columns[idIndex] : "",
+              diskName: nameIndex >= 0 ? columns[nameIndex] : "",
+              uid: uidIndex >= 0 ? columns[uidIndex] : ""
+            });
+            return;
+          }
+        }
+
+        const colonMatch = trimmed.match(/^(\d+)\s*:\s*(.*?)\s*:\s*([0-9a-fA-F][0-9a-fA-F\s:-]{24,})$/);
+        if (colonMatch) {
+          addRow({ diskNumber: colonMatch[1], diskName: colonMatch[2], uid: colonMatch[3] });
+          return;
+        }
+
+        const tableMatch = trimmed.match(/^(\d+)\s+(.+?)\s+([0-9a-fA-F]{32,})$/);
+        if (tableMatch && !/^Number\s+/i.test(trimmed)) {
+          addRow({ diskNumber: tableMatch[1], diskName: tableMatch[2], uid: tableMatch[3] });
+          return;
+        }
+
+        const fallbackKey = uidKey(trimmed);
+        if (fallbackKey) addRow({ diskNumber: "", diskName: "", uid: fallbackKey });
+      });
+
+      return rows;
+    }
+
+    function parseStorwizeVolumeOutput(text) {
+      const lines = normaliseNewlines(text).split("\n");
+      const rows = [];
+      const seen = new Set();
+      let table = null;
+
+      function valueFor(record, names) {
+        for (const name of names) {
+          if (record[name] != null && record[name] !== "") return record[name];
+        }
+        return "";
+      }
+
+      function addRecord(record) {
+        const uid = valueFor(record, ["vdisk_uid", "vdiskuid", "volume_uid", "uid"]);
+        const key = uidKey(uid);
+        if (!key) return;
+        const volumeId = valueFor(record, ["vdisk_id", "vdiskid", "volume_id"]);
+        const volumeName = valueFor(record, ["vdisk_name", "vdiskname", "volume_name", "name"]);
+        const hostId = valueFor(record, ["host_id", "hostid", "id"]);
+        const hostName = valueFor(record, ["host_name", "hostname"]);
+        const displayHostName = hostName || (record.vdisk_id != null ? valueFor(record, ["name"]) : "");
+        const scsiId = valueFor(record, ["scsi_id", "scsiid", "lun_id", "lun"]);
+        const ioGroup = valueFor(record, ["io_group_name", "iogroup_name", "io_group_id", "iogroup_id"]);
+        const dedupe = `${key}|${volumeId}|${volumeName}|${hostId}|${displayHostName}|${scsiId}`;
+        if (seen.has(dedupe)) return;
+        seen.add(dedupe);
+        rows.push({
+          uidKey: key,
+          storwizeUid: String(uid || "").trim(),
+          volumeId,
+          volumeName,
+          hostId,
+          hostName: displayHostName,
+          scsiId,
+          ioGroup
+        });
+      }
+
+      function startTable(headerLine, delimiter) {
+        const headers = delimiter
+          ? headerLine.split(delimiter).map(normaliseHeaderName)
+          : headerLine.trim().split(/\s+/).map(normaliseHeaderName);
+        if (headers.includes("vdisk_uid") || headers.includes("vdiskuid")) {
+          table = { delimiter, headers };
+        }
+      }
+
+      lines.forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed || /^[-\s,:]+$/.test(trimmed)) return;
+        if (/^\S+:\S+.*>\s*/.test(trimmed)) return;
+
+        if (/vdisk[_\s-]*UID/i.test(trimmed)) {
+          const colonCount = (trimmed.match(/:/g) || []).length;
+          const commaCount = (trimmed.match(/,/g) || []).length;
+          startTable(trimmed, colonCount >= commaCount && colonCount > 0 ? ":" : commaCount > 0 ? "," : "");
+          return;
+        }
+
+        if (table) {
+          const values = table.delimiter
+            ? table.delimiter === "," ? parseCsvLine(trimmed) : trimmed.split(table.delimiter).map((item) => item.trim())
+            : trimmed.split(/\s+/);
+          if (values.length >= Math.min(table.headers.length, 6)) {
+            const record = {};
+            table.headers.forEach((header, index) => { record[header] = values[index] || ""; });
+            addRecord(record);
+            return;
+          }
+        }
+
+        const uid = uidKey(trimmed);
+        if (!uid) return;
+        const parts = trimmed.split(/\s+/);
+        if (parts.length >= 6) {
+          addRecord({
+            id: parts[0],
+            name: parts[1],
+            scsi_id: parts[2],
+            vdisk_id: parts[3],
+            vdisk_name: parts[4],
+            vdisk_uid: parts.find((part) => uidKey(part) === uid) || uid
+          });
+        }
+      });
+
+      return rows;
+    }
+
+    function buildVolumeMappings(osDisks, storwizeVolumes) {
+      const storageByUid = new Map();
+      storwizeVolumes.forEach((volume) => {
+        if (!storageByUid.has(volume.uidKey)) storageByUid.set(volume.uidKey, []);
+        storageByUid.get(volume.uidKey).push(volume);
+      });
+      const osByUid = new Map();
+      osDisks.forEach((disk) => {
+        if (!osByUid.has(disk.uidKey)) osByUid.set(disk.uidKey, []);
+        osByUid.get(disk.uidKey).push(disk);
+      });
+
+      const rows = [];
+      osDisks.forEach((disk) => {
+        const matches = storageByUid.get(disk.uidKey) || [];
+        if (!matches.length) {
+          rows.push({ match: "OS only", disk, volume: null, uidKey: disk.uidKey, note: "No Storwize mapped volume matched this OS UID." });
+          return;
+        }
+        matches.forEach((volume) => {
+          rows.push({ match: "Matched", disk, volume, uidKey: disk.uidKey, note: "" });
+        });
+      });
+
+      storwizeVolumes.forEach((volume) => {
+        if (osByUid.has(volume.uidKey)) return;
+        rows.push({ match: "Storwize only", disk: null, volume, uidKey: volume.uidKey, note: "No OS disk UID matched this Storwize volume." });
+      });
+
+      return rows;
     }
 
     function compactWwpn(value) {
@@ -1692,6 +1999,123 @@ Interpretation:
       }
     }
 
+    async function appendFilesToTextarea(input, textarea) {
+      for (const file of Array.from(input.files || [])) {
+        const fileData = await readFile(file);
+        const prefix = textarea.value.trim() ? "\n\n" : "";
+        textarea.value += `${prefix}# ${fileData.name}\n${fileData.text}`;
+      }
+      input.value = "";
+    }
+
+    function volumeMappingCsvRows() {
+      return [
+        ["Match", "UID key", "OS disk number", "OS disk name", "OS UID", "Storwize volume name", "Storwize volume ID", "Storwize UID", "Host name", "Host ID", "SCSI/LUN ID", "I/O group", "Notes"],
+        ...state.volumeMappings.map((row) => [
+          row.match,
+          row.uidKey,
+          row.disk ? row.disk.diskNumber : "",
+          row.disk ? row.disk.diskName : "",
+          row.disk ? row.disk.osUid : "",
+          row.volume ? row.volume.volumeName : "",
+          row.volume ? row.volume.volumeId : "",
+          row.volume ? row.volume.storwizeUid : "",
+          row.volume ? row.volume.hostName : "",
+          row.volume ? row.volume.hostId : "",
+          row.volume ? row.volume.scsiId : "",
+          row.volume ? row.volume.ioGroup : "",
+          row.note
+        ])
+      ];
+    }
+
+    function volumeMappingCsv() {
+      return volumeMappingCsvRows().map((row) => row.map(csvSafe).join(",")).join("\n");
+    }
+
+    function renderVolumeMappings() {
+      els.volumeMapRows.innerHTML = "";
+      els.copyVolumeMapBtn.disabled = !state.volumeMappings.length;
+      els.downloadVolumeMapBtn.disabled = !state.volumeMappings.length;
+      if (!state.volumeMappings.length) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 10;
+        td.textContent = "No OS to Storwize mappings built yet.";
+        tr.appendChild(td);
+        els.volumeMapRows.appendChild(tr);
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+      state.volumeMappings.forEach((row) => {
+        const tr = document.createElement("tr");
+        const matchTd = document.createElement("td");
+        const badge = document.createElement("span");
+        badge.className = row.match === "Matched" ? "badge green" : row.match === "OS only" ? "badge amber" : "badge blue";
+        badge.textContent = row.match;
+        matchTd.appendChild(badge);
+
+        const uidTd = document.createElement("td");
+        uidTd.className = "wwpn";
+        uidTd.textContent = row.uidKey;
+
+        const osDiskTd = document.createElement("td");
+        osDiskTd.textContent = row.disk ? row.disk.diskNumber : "";
+        const osNameTd = document.createElement("td");
+        osNameTd.textContent = row.disk ? row.disk.diskName : "";
+        const osUidTd = document.createElement("td");
+        osUidTd.className = "wwpn";
+        osUidTd.textContent = row.disk ? row.disk.osUid : "";
+
+        const volNameTd = document.createElement("td");
+        volNameTd.textContent = row.volume ? row.volume.volumeName : "";
+        const volIdTd = document.createElement("td");
+        volIdTd.textContent = row.volume ? row.volume.volumeId : "";
+        const hostTd = document.createElement("td");
+        hostTd.textContent = row.volume ? [row.volume.hostName, row.volume.hostId ? `(${row.volume.hostId})` : ""].filter(Boolean).join(" ") : "";
+        const scsiTd = document.createElement("td");
+        scsiTd.textContent = row.volume ? row.volume.scsiId : "";
+        const noteTd = document.createElement("td");
+        noteTd.textContent = row.note || "";
+
+        tr.append(matchTd, uidTd, osDiskTd, osNameTd, osUidTd, volNameTd, volIdTd, hostTd, scsiTd, noteTd);
+        fragment.appendChild(tr);
+      });
+      els.volumeMapRows.appendChild(fragment);
+    }
+
+    async function processVolumeMap() {
+      await appendFilesToTextarea(els.osUidFiles, els.osUidText);
+      await appendFilesToTextarea(els.storwizeUidFiles, els.storwizeUidText);
+      const osDisks = parseOsDiskUidOutput(els.osUidText.value);
+      const storwizeVolumes = parseStorwizeVolumeOutput(els.storwizeUidText.value);
+      state.volumeMappings = buildVolumeMappings(osDisks, storwizeVolumes);
+      const matched = state.volumeMappings.filter((row) => row.match === "Matched").length;
+      const osOnly = state.volumeMappings.filter((row) => row.match === "OS only").length;
+      const storageOnly = state.volumeMappings.filter((row) => row.match === "Storwize only").length;
+      els.volumeMapStatus.textContent = `Parsed ${osDisks.length} OS disk UID row${osDisks.length === 1 ? "" : "s"} and ${storwizeVolumes.length} Storwize mapped-volume row${storwizeVolumes.length === 1 ? "" : "s"}. Matched ${matched}; OS only ${osOnly}; Storwize only ${storageOnly}.`;
+      els.volumeMapStatus.className = matched ? "notice ok" : "notice";
+      els.volumeMapSummary.textContent = matched
+        ? `Built ${matched} OS disk to Storwize volume mapping${matched === 1 ? "" : "s"} keyed by UID. Review any OS-only or Storwize-only rows before relying on the list.`
+        : "No UID matches were found. Check that the Windows UID script and Storwize lshostvdiskmap output are from the same host and storage system.";
+      renderVolumeMappings();
+      autoSaveProject();
+    }
+
+    function clearVolumeMap() {
+      state.volumeMappings = [];
+      els.osUidFiles.value = "";
+      els.storwizeUidFiles.value = "";
+      els.osUidText.value = "";
+      els.storwizeUidText.value = "";
+      els.volumeMapStatus.textContent = "No OS or Storwize UID output processed yet.";
+      els.volumeMapStatus.className = "hint";
+      els.volumeMapSummary.textContent = "Paste both outputs and build the mapping list.";
+      renderVolumeMappings();
+      autoSaveProject();
+    }
+
     async function importSwitchshowPorts() {
       const fabric = state.fabrics[Number(els.switchshowFabricSelect.value)];
       if (!fabric) {
@@ -1796,11 +2220,24 @@ Interpretation:
       return state.fabrics[state.activeFabricIndex] || null;
     }
 
+    function hasVolumeWorkspace() {
+      return Boolean(
+        state.volumeMappings.length ||
+        els.osUidText.value.trim() ||
+        els.storwizeUidText.value.trim()
+      );
+    }
+
+    function hasSavableProject() {
+      return state.fabrics.length > 0 || hasVolumeWorkspace();
+    }
+
     function renderAll() {
       const hasData = state.fabrics.length > 0;
       [els.summarySection, els.switchshowImportSection, els.npivImportSection, els.wwpnBulkSection, els.activeConfigSection, els.deviceSection, els.commandSection].forEach((el) => el.classList.toggle("hidden", !hasData));
-      els.saveProjectBtn.disabled = !hasData;
-      els.downloadWorkbookBtn.disabled = !hasData;
+      els.saveProjectBtn.disabled = !hasSavableProject();
+      els.downloadWorkbookBtn.disabled = !hasSavableProject();
+      renderVolumeMappings();
       if (!hasData) return;
       renderFabricSelect();
       renderSwitchshowFabricSelect();
@@ -2214,13 +2651,19 @@ Interpretation:
       state.selected.clear();
       state.visibleDeviceIds = [];
       state.wwpnMatches = [];
-      [els.fabricAFile, els.fabricBFile, els.extraFiles, els.switchshowFiles, els.npivEvidenceFiles, els.restoreProjectFile].forEach((input) => { input.value = ""; });
+      state.volumeMappings = [];
+      [els.fabricAFile, els.fabricBFile, els.extraFiles, els.switchshowFiles, els.npivEvidenceFiles, els.restoreProjectFile, els.osUidFiles, els.storwizeUidFiles].forEach((input) => { input.value = ""; });
       els.deviceSearch.value = "";
       els.activeZoneSearch.value = "";
       els.switchshowText.value = "";
       els.switchshowImportStatus.textContent = "No additional switchshow ports imported yet.";
       els.switchshowImportStatus.className = "hint";
       els.npivEvidenceText.value = "";
+      els.osUidText.value = "";
+      els.storwizeUidText.value = "";
+      els.volumeMapStatus.textContent = "No OS or Storwize UID output processed yet.";
+      els.volumeMapStatus.className = "hint";
+      els.volumeMapSummary.textContent = "Paste both outputs and build the mapping list.";
       els.wwpnBulkText.value = "";
       els.wwpnBulkStatus.textContent = "No Windows WWPN output searched yet.";
       els.wwpnBulkStatus.className = "hint";
@@ -2298,6 +2741,7 @@ Interpretation:
       const configs = [["Fabric", "Config", "Members", "Active"]];
       const ports = [["Fabric", "Switch", "Index", "Port", "Address", "Media", "Speed", "State", "Proto", "Details", "WWPNs", "Source"]];
       const warnings = [["Fabric", "Warning"]];
+      const volumeMap = volumeMappingCsvRows();
 
       state.fabrics.forEach((fabric) => {
         summary.push([
@@ -2376,7 +2820,8 @@ Interpretation:
         ["Zones", zones],
         ["Configs", configs],
         ["Switch Ports", ports],
-        ["Warnings", warnings]
+        ["Warnings", warnings],
+        ["Volume UID Map", volumeMap]
       ];
     }
 
@@ -2519,15 +2964,15 @@ Interpretation:
     }
 
     function downloadWorkbook() {
-      if (!state.fabrics.length) return;
+      if (!hasSavableProject()) return;
       const stamp = new Date().toISOString().slice(0, 10);
       downloadBlob(buildXlsx(), `brocade-zoning-planner-${stamp}.xlsx`);
     }
 
     function fallbackCsvDownload() {
-      const rows = makeWorkbookRows()[1][1];
+      const rows = state.volumeMappings.length ? volumeMappingCsvRows() : makeWorkbookRows()[1][1];
       const csv = rows.map((row) => row.map(csvSafe).join(",")).join("\n");
-      downloadText(csv, "brocade-zoning-devices.csv");
+      downloadText(csv, state.volumeMappings.length ? "storwize-volume-uid-map.csv" : "brocade-zoning-devices.csv");
     }
 
     function serializeFabric(fabric) {
@@ -2549,7 +2994,12 @@ Interpretation:
         activeFabricIndex: state.activeFabricIndex,
         selected: Array.from(state.selected),
         wwpnMatches: state.wwpnMatches,
+        volumeMappings: state.volumeMappings,
         ui: {
+          osUidText: els.osUidText.value,
+          storwizeUidText: els.storwizeUidText.value,
+          volumeMapStatus: els.volumeMapStatus.textContent,
+          volumeMapSummary: els.volumeMapSummary.textContent,
           activeZoneSearch: els.activeZoneSearch.value,
           deviceSearch: els.deviceSearch.value,
           switchshowImportStatus: els.switchshowImportStatus.textContent,
@@ -2587,7 +3037,13 @@ Interpretation:
       state.activeFabricIndex = Math.min(Math.max(Number(project.activeFabricIndex) || 0, 0), Math.max(state.fabrics.length - 1, 0));
       state.selected = new Set(Array.isArray(project.selected) ? project.selected : []);
       state.wwpnMatches = Array.isArray(project.wwpnMatches) ? project.wwpnMatches : [];
+      state.volumeMappings = Array.isArray(project.volumeMappings) ? project.volumeMappings : [];
       const ui = project.ui || {};
+      els.osUidText.value = ui.osUidText || "";
+      els.storwizeUidText.value = ui.storwizeUidText || "";
+      els.volumeMapStatus.textContent = ui.volumeMapStatus || (state.volumeMappings.length ? `Restored ${state.volumeMappings.length} volume mapping row${state.volumeMappings.length === 1 ? "" : "s"}.` : "No OS or Storwize UID output processed yet.");
+      els.volumeMapStatus.className = state.volumeMappings.length ? "notice ok" : "hint";
+      els.volumeMapSummary.textContent = ui.volumeMapSummary || (state.volumeMappings.length ? "Restored OS disk to Storwize volume mapping list." : "Paste both outputs and build the mapping list.");
       els.activeZoneSearch.value = ui.activeZoneSearch || "";
       els.deviceSearch.value = ui.deviceSearch || "";
       els.switchshowText.value = ui.switchshowText || "";
@@ -2618,7 +3074,7 @@ Interpretation:
     }
 
     function autoSaveProject() {
-      if (!state.autoSaveReady || !state.fabrics.length) return;
+      if (!state.autoSaveReady || !hasSavableProject()) return;
       try {
         localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(buildProject()));
       } catch (error) {
@@ -2627,7 +3083,7 @@ Interpretation:
     }
 
     function saveProjectJson() {
-      if (!state.fabrics.length) return;
+      if (!hasSavableProject()) return;
       const project = JSON.stringify(buildProject(), null, 2);
       const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
       downloadText(project, `brocade-zoning-planner-project-${stamp}.json`);
@@ -2714,6 +3170,15 @@ Interpretation:
       );
     }
 
+    function showStorwizeCommands() {
+      showReference(
+        "Storwize Mapped Volume UID Commands",
+        "Run on the IBM Storage Virtualize, Storwize, or FlashSystem CLI. The mapper expects lshostvdiskmap output with vdisk_UID.",
+        STORWIZE_UID_COMMANDS,
+        "storwize-mapped-volume-uids.txt"
+      );
+    }
+
     function showNpivNotes() {
       showReference(
         "NPIV SCSI/NVMe Notes",
@@ -2725,6 +3190,7 @@ Interpretation:
 
     els.hbaCommandBtn.addEventListener("click", showHbaCommand);
     els.uidScriptBtn.addEventListener("click", showUidScript);
+    els.storwizeCommandBtn.addEventListener("click", showStorwizeCommands);
     els.npivNotesBtn.addEventListener("click", showNpivNotes);
     els.copyReferenceBtn.addEventListener("click", async () => {
       await copyText(els.referenceText.value);
@@ -2740,6 +3206,24 @@ Interpretation:
     els.restoreProjectFile.addEventListener("change", restoreProjectFile);
     els.loadBtn.addEventListener("click", loadFiles);
     els.clearBtn.addEventListener("click", clearAll);
+    els.processVolumeMapBtn.addEventListener("click", processVolumeMap);
+    els.clearVolumeMapBtn.addEventListener("click", clearVolumeMap);
+    els.copyVolumeMapBtn.addEventListener("click", async () => {
+      await copyText(volumeMappingCsv());
+    });
+    els.downloadVolumeMapBtn.addEventListener("click", () => {
+      downloadText(volumeMappingCsv(), "storwize-volume-uid-map.csv");
+    });
+    [els.osUidText, els.storwizeUidText].forEach((input) => {
+      input.addEventListener("input", () => {
+        state.volumeMappings = [];
+        els.volumeMapStatus.textContent = "UID input changed. Build the volume map again.";
+        els.volumeMapStatus.className = "hint";
+        els.volumeMapSummary.textContent = "Paste both outputs and build the mapping list.";
+        renderAll();
+        autoSaveProject();
+      });
+    });
     els.fabricSelect.addEventListener("change", () => {
       state.activeFabricIndex = Number(els.fabricSelect.value);
       state.selected.clear();
@@ -2845,6 +3329,7 @@ Interpretation:
         fallbackCsvDownload();
       }
     });
+    renderVolumeMappings();
     restoreLastProject();
   </script>
 </body>

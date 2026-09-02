@@ -15,6 +15,7 @@ Browser-only Brocade SAN zoning planner.
 - Exports parsed data as an XLSX workbook.
 - Saves and restores complete project state as JSON, with browser memory of the last project.
 - Bulk-selects aliases from pasted Windows `Get-InitiatorPort` WWPN output.
+- Builds an OS disk to Storwize/FlashSystem volume mapping list by matching Windows disk UniqueId values to `lshostvdiskmap` `vdisk_UID` values.
 
 ## Using It
 
@@ -45,3 +46,21 @@ portshow <port>
 ```
 
 The tool does not run commands on switches. It only parses captures and prepares commands for review.
+
+## OS Disk To Storwize Volume Mapping
+
+On the Windows host, run the **Windows UID script** from the tool and paste the output into the OS UID box.
+
+On IBM Storage Virtualize / Storwize / FlashSystem, run the **Storwize UID commands** from the tool. The key command is:
+
+```text
+lshostvdiskmap -delim :
+```
+
+You can run it for all mappings or for one host:
+
+```text
+lshostvdiskmap -delim : <host_name_or_id>
+```
+
+Paste the storage output into the Storwize box and build the map. The output list is keyed by UID and includes OS disk number, OS disk name, OS UID, Storwize volume name, Storwize volume ID, host, and SCSI/LUN ID.
