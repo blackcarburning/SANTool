@@ -18,6 +18,7 @@ Browser-only Brocade SAN zoning planner.
 - Bulk-selects aliases from pasted Windows `Get-InitiatorPort` WWPN output.
 - Builds an OS disk, drive-letter, or mount-point to Storwize/FlashSystem volume mapping list by matching Windows disk UniqueId values to `lshostvdiskmap` `vdisk_UID` values.
 - Provides a Storwize/FlashSystem host-port command helper for listing FC SCSI target WWPNs where `host_io_permitted` is `yes`.
+- Converts compact Storwize/FlashSystem `lstargetportfc` WWPNs into Brocade-style colon-separated WWPNs.
 
 ## Using It
 
@@ -60,6 +61,8 @@ lstargetportfc -filtervalue host_io_permitted=yes:protocol=scsi
 ```
 
 The useful fields in the output are `id`, `WWPN`, `host_io_permitted`, `virtualized`, and `protocol`. For normal FC SCSI host zoning, use rows where `host_io_permitted` is `yes` and `protocol` is `scsi`.
+
+The Storwize CLI `-delim :` option colon-separates output columns; it does not change the WWPN value itself into `50:05:...` notation. Paste `lstargetportfc` output into the **Storwize WWPN formatter** box to convert the compact 16-character WWPN values for Brocade zoning notes or commands.
 
 ## Notebook
 

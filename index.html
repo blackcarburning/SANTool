@@ -180,6 +180,13 @@
       border-color: #1f2937;
     }
 
+    .compact-output {
+      min-height: 160px;
+      background: var(--code-bg);
+      color: var(--code-text);
+      border-color: #1f2937;
+    }
+
     button {
       min-height: 38px;
       border: 1px solid transparent;
@@ -691,6 +698,27 @@
     </section>
 
     <section id="volumeMapSection">
+      <div class="grid" style="margin-bottom:16px;">
+        <div class="col-4">
+          <h2>Storwize WWPN formatter</h2>
+          <p class="hint">Paste <code>lstargetportfc</code> output to find compact WWPNs and convert them to Brocade-style colon notation. Rows with host I/O fields are annotated for host zoning review.</p>
+          <div class="actions" style="margin-top:10px;">
+            <button id="formatStorwizeWwpnBtn" type="button">Convert WWPNs</button>
+            <button id="copyStorwizeWwpnBtn" class="secondary" type="button" disabled>Copy converted</button>
+            <button id="downloadStorwizeWwpnBtn" class="secondary" type="button" disabled>Download text</button>
+            <button id="clearStorwizeWwpnBtn" class="secondary" type="button">Clear formatter</button>
+          </div>
+          <div id="storwizeWwpnStatus" class="hint">No Storwize target-port output converted yet.</div>
+        </div>
+        <div class="col-4">
+          <label for="storwizeWwpnText">Paste lstargetportfc output</label>
+          <textarea id="storwizeWwpnText" spellcheck="false" placeholder="Paste lstargetportfc output here. The tool accepts normal or -delim : output and finds 16-digit WWPN values."></textarea>
+        </div>
+        <div class="col-4">
+          <label for="storwizeWwpnOutput">Converted WWPNs</label>
+          <textarea id="storwizeWwpnOutput" class="compact-output" readonly spellcheck="false" placeholder="Converted WWPNs will appear here."></textarea>
+        </div>
+      </div>
       <div class="grid">
         <div class="col-4">
           <h2>OS to Storwize volume mapper</h2>
@@ -1258,6 +1286,13 @@ NVMe target ports are for NVMe/FC, not normal SCSI host mapping.</template>
       downloadReferenceBtn: document.getElementById("downloadReferenceBtn"),
       uidScriptTemplate: document.getElementById("uidScriptTemplate"),
       npivNotesTemplate: document.getElementById("npivNotesTemplate"),
+      storwizeWwpnText: document.getElementById("storwizeWwpnText"),
+      storwizeWwpnOutput: document.getElementById("storwizeWwpnOutput"),
+      formatStorwizeWwpnBtn: document.getElementById("formatStorwizeWwpnBtn"),
+      copyStorwizeWwpnBtn: document.getElementById("copyStorwizeWwpnBtn"),
+      downloadStorwizeWwpnBtn: document.getElementById("downloadStorwizeWwpnBtn"),
+      clearStorwizeWwpnBtn: document.getElementById("clearStorwizeWwpnBtn"),
+      storwizeWwpnStatus: document.getElementById("storwizeWwpnStatus"),
       loadBtn: document.getElementById("loadBtn"),
       loadStatus: document.getElementById("loadStatus"),
       clearBtn: document.getElementById("clearBtn"),
@@ -1601,6 +1636,167 @@ NVMe target ports are for NVMe/FC, not normal SCSI host mapping.</template>
       const colonWwpns = (source.match(WWPN_RE) || []).map((item) => canonicalWwpn(item));
       const compactWwpns = (source.match(COMPACT_WWPN_RE) || []).map((item) => canonicalWwpn(item));
       return unique([...colonWwpns, ...compactWwpns].filter(Boolean));
+    }
+
+    function compactWwpn(value) {
+      const compact = String(value || "").replace(/[^0-9a-fA-F]/g, "").toUpperCase();
+      return compact.length === 16 ? compact : "";
+    }
+
+    function splitCliColumns(line, headerColumns) {
+      if (line.includes(":") && headerColumns.length > 1) return line.split(":").map((part) => part.trim());
+      return line.trim().split(/\s+/);
+    }
+
+    function storwizeHostPortNote(row) {
+      const hostIo = String(row.host_io_permitted || "").toLowerCase();
+      const protocol = String(row.protocol || "").toLowerCase();
+      if (hostIo === "yes" && protocol === "scsi") return "Host access candidate";
+      if (hostIo === "yes" && !protocol) return "Host access candidate, confirm protocol";
+      if (protocol === "nvme") return "NVMe/FC target, not normal SCSI host zoning";
+      if (hostIo === "no") return "Not permitted for host I/O";
+      return "Review source row";
+    }
+
+    function storwizeTargetPortRow(values, headerColumns, isDelimited) {
+      const wwpnIndex = headerColumns.indexOf("WWPN");
+      const compact = compactWwpn(values[wwpnIndex]);
+      if (!compact) return null;
+      const row = { compact, colon: canonicalWwpn(compact), id: values[0] || "" };
+
+      if (isDelimited) {
+        headerColumns.forEach((column, index) => {
+          row[column] = values[index] || "";
+        });
+      } else {
+        let protocolIndex = -1;
+        for (let index = values.length - 1; index >= 0; index -= 1) {
+          const value = String(values[index] || "").toLowerCase();
+          if (value === "scsi" || value === "nvme") {
+            protocolIndex = index;
+            break;
+          }
+        }
+        row.host_io_permitted = "";
+        row.virtualized = "";
+        row.protocol = protocolIndex >= 0 ? values[protocolIndex] : "";
+        if (protocolIndex >= 2) {
+          row.host_io_permitted = values[protocolIndex - 2] || "";
+          row.virtualized = values[protocolIndex - 1] || "";
+        } else {
+          const boolValues = values.filter((value) => /^(yes|no)$/i.test(value));
+          row.host_io_permitted = boolValues.length >= 2 ? boolValues[boolValues.length - 2] : "";
+          row.virtualized = boolValues.length >= 1 ? boolValues[boolValues.length - 1] : "";
+        }
+      }
+
+      row.note = storwizeHostPortNote(row);
+      return row;
+    }
+
+    function parseStorwizeTargetPorts(text) {
+      const rows = [];
+      const seen = new Set();
+      let headerColumns = [];
+      const lines = normaliseNewlines(text).split("\n").map((line) => line.trim()).filter(Boolean);
+
+      lines.forEach((line) => {
+        const trimmed = line.replace(/^\S+>\s*/, "").trim();
+        const possibleHeader = trimmed.includes("WWPN") && trimmed.includes("host_io_permitted");
+        if (possibleHeader) {
+          headerColumns = trimmed.split(trimmed.includes(":") ? ":" : /\s+/).map((part) => part.trim());
+          return;
+        }
+
+        if (headerColumns.length) {
+          const isDelimited = trimmed.includes(":");
+          const row = storwizeTargetPortRow(splitCliColumns(trimmed, headerColumns), headerColumns, isDelimited);
+          if (!row || seen.has(row.compact)) return;
+          seen.add(row.compact);
+          rows.push(row);
+          return;
+        }
+
+        (trimmed.match(COMPACT_WWPN_RE) || []).forEach((match) => {
+          const compact = compactWwpn(match);
+          if (!compact || seen.has(compact)) return;
+          seen.add(compact);
+          rows.push({
+            compact,
+            colon: canonicalWwpn(compact),
+            id: "",
+            host_io_permitted: "",
+            virtualized: "",
+            protocol: "",
+            note: "WWPN found outside a recognised lstargetportfc table"
+          });
+        });
+      });
+
+      return rows;
+    }
+
+    function pipeTable(rows, columns) {
+      if (!rows.length) return "";
+      const widths = columns.map((column) => Math.max(
+        column.label.length,
+        ...rows.map((row) => String(row[column.key] || "").length)
+      ));
+      const formatRow = (row) => columns
+        .map((column, index) => String(row[column.key] || "").padEnd(widths[index], " "))
+        .join(" | ")
+        .trimEnd();
+      return [
+        columns.map((column, index) => column.label.padEnd(widths[index], " ")).join(" | ").trimEnd(),
+        widths.map((width) => "-".repeat(width)).join("-|-"),
+        ...rows.map(formatRow)
+      ].join("\n");
+    }
+
+    function formatStorwizeWwpns(options = {}) {
+      const silent = Boolean(options.silent);
+      const source = els.storwizeWwpnText.value.trim();
+      const rows = parseStorwizeTargetPorts(source);
+      if (!source) {
+        els.storwizeWwpnOutput.value = "";
+        els.copyStorwizeWwpnBtn.disabled = true;
+        els.downloadStorwizeWwpnBtn.disabled = true;
+        if (!silent) {
+          els.storwizeWwpnStatus.textContent = "Paste lstargetportfc output first.";
+          els.storwizeWwpnStatus.className = "notice bad";
+        }
+        return rows;
+      }
+
+      if (!rows.length) {
+        els.storwizeWwpnOutput.value = "";
+        els.copyStorwizeWwpnBtn.disabled = true;
+        els.downloadStorwizeWwpnBtn.disabled = true;
+        if (!silent) {
+          els.storwizeWwpnStatus.textContent = "No 16-digit WWPN values found in the pasted output.";
+          els.storwizeWwpnStatus.className = "notice bad";
+        }
+        return rows;
+      }
+
+      els.storwizeWwpnOutput.value = pipeTable(rows, [
+        { key: "id", label: "id" },
+        { key: "compact", label: "WWPN" },
+        { key: "colon", label: "WWPN with colons" },
+        { key: "host_io_permitted", label: "host_io_permitted" },
+        { key: "virtualized", label: "virtualized" },
+        { key: "protocol", label: "protocol" },
+        { key: "note", label: "note" }
+      ]);
+      els.copyStorwizeWwpnBtn.disabled = false;
+      els.downloadStorwizeWwpnBtn.disabled = false;
+      if (!silent) {
+        const hostCandidates = rows.filter((row) => String(row.host_io_permitted).toLowerCase() === "yes" && String(row.protocol).toLowerCase() === "scsi").length;
+        els.storwizeWwpnStatus.textContent = `Converted ${rows.length} WWPN${rows.length === 1 ? "" : "s"}. Host-access SCSI candidates: ${hostCandidates}.`;
+        els.storwizeWwpnStatus.className = "notice ok";
+      }
+      autoSaveProject();
+      return rows;
     }
 
     function uidKey(value) {
@@ -3185,6 +3381,12 @@ NVMe target ports are for NVMe/FC, not normal SCSI host mapping.</template>
       els.npivEvidenceText.value = "";
       els.osUidText.value = "";
       els.storwizeUidText.value = "";
+      els.storwizeWwpnText.value = "";
+      els.storwizeWwpnOutput.value = "";
+      els.storwizeWwpnStatus.textContent = "No Storwize target-port output converted yet.";
+      els.storwizeWwpnStatus.className = "hint";
+      els.copyStorwizeWwpnBtn.disabled = true;
+      els.downloadStorwizeWwpnBtn.disabled = true;
       els.volumeMapStatus.textContent = "No OS or Storwize UID output processed yet.";
       els.volumeMapStatus.className = "hint";
       els.volumeMapSummary.textContent = "Paste both outputs and build the mapping list.";
@@ -3532,6 +3734,9 @@ NVMe target ports are for NVMe/FC, not normal SCSI host mapping.</template>
         ui: {
           osUidText: els.osUidText.value,
           storwizeUidText: els.storwizeUidText.value,
+          storwizeWwpnText: els.storwizeWwpnText.value,
+          storwizeWwpnOutput: els.storwizeWwpnOutput.value,
+          storwizeWwpnStatus: els.storwizeWwpnStatus.textContent,
           volumeMapStatus: els.volumeMapStatus.textContent,
           volumeMapSummary: els.volumeMapSummary.textContent,
           activeZoneSearch: els.activeZoneSearch.value,
@@ -3576,6 +3781,12 @@ NVMe target ports are for NVMe/FC, not normal SCSI host mapping.</template>
       const ui = project.ui || {};
       els.osUidText.value = ui.osUidText || "";
       els.storwizeUidText.value = ui.storwizeUidText || "";
+      els.storwizeWwpnText.value = ui.storwizeWwpnText || "";
+      els.storwizeWwpnOutput.value = ui.storwizeWwpnOutput || "";
+      els.storwizeWwpnStatus.textContent = ui.storwizeWwpnStatus || (els.storwizeWwpnOutput.value ? "Restored converted Storwize WWPNs." : "No Storwize target-port output converted yet.");
+      els.storwizeWwpnStatus.className = els.storwizeWwpnOutput.value ? "notice ok" : "hint";
+      els.copyStorwizeWwpnBtn.disabled = !els.storwizeWwpnOutput.value;
+      els.downloadStorwizeWwpnBtn.disabled = !els.storwizeWwpnOutput.value;
       els.volumeMapStatus.textContent = ui.volumeMapStatus || (state.volumeMappings.length ? `Restored ${state.volumeMappings.length} volume mapping row${state.volumeMappings.length === 1 ? "" : "s"}.` : "No OS or Storwize UID output processed yet.");
       els.volumeMapStatus.className = state.volumeMappings.length ? "notice ok" : "hint";
       els.volumeMapSummary.textContent = ui.volumeMapSummary || (state.volumeMappings.length ? "Restored OS disk to Storwize volume mapping list." : "Paste both outputs and build the mapping list.");
@@ -3743,6 +3954,24 @@ NVMe target ports are for NVMe/FC, not normal SCSI host mapping.</template>
     els.downloadReferenceBtn.addEventListener("click", () => {
       downloadText(els.referenceText.value, state.referenceFilename);
     });
+    els.formatStorwizeWwpnBtn.addEventListener("click", () => {
+      formatStorwizeWwpns();
+    });
+    els.copyStorwizeWwpnBtn.addEventListener("click", async () => {
+      await copyText(els.storwizeWwpnOutput.value);
+    });
+    els.downloadStorwizeWwpnBtn.addEventListener("click", () => {
+      downloadText(els.storwizeWwpnOutput.value, "storwize-wwpns-with-colons.txt");
+    });
+    els.clearStorwizeWwpnBtn.addEventListener("click", () => {
+      els.storwizeWwpnText.value = "";
+      els.storwizeWwpnOutput.value = "";
+      els.copyStorwizeWwpnBtn.disabled = true;
+      els.downloadStorwizeWwpnBtn.disabled = true;
+      els.storwizeWwpnStatus.textContent = "No Storwize target-port output converted yet.";
+      els.storwizeWwpnStatus.className = "hint";
+      autoSaveProject();
+    });
 
     els.saveProjectBtn.addEventListener("click", saveProjectJson);
     els.restoreProjectBtn.addEventListener("click", () => {
@@ -3879,6 +4108,14 @@ NVMe target ports are for NVMe/FC, not normal SCSI host mapping.</template>
       els.wwpnBulkStatus.textContent = "Windows WWPN output changed. Run the search again.";
       els.wwpnBulkStatus.className = "hint";
       renderWwpnResults();
+      autoSaveProject();
+    });
+    els.storwizeWwpnText.addEventListener("input", () => {
+      els.storwizeWwpnOutput.value = "";
+      els.copyStorwizeWwpnBtn.disabled = true;
+      els.downloadStorwizeWwpnBtn.disabled = true;
+      els.storwizeWwpnStatus.textContent = "Storwize target-port output changed. Convert WWPNs again.";
+      els.storwizeWwpnStatus.className = "hint";
       autoSaveProject();
     });
     els.activeZoneSearch.addEventListener("input", () => {
