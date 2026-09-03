@@ -17,6 +17,7 @@ Browser-only Brocade SAN zoning planner.
 - Provides a tabbed notebook for task notes and command snippets, with rich-text formatting saved in project JSON and exported to the workbook.
 - Bulk-selects aliases from pasted Windows `Get-InitiatorPort` WWPN output.
 - Builds an OS disk, drive-letter, or mount-point to Storwize/FlashSystem volume mapping list by matching Windows disk UniqueId values to `lshostvdiskmap` `vdisk_UID` values.
+- Provides a Storwize/FlashSystem host-port command helper for listing FC SCSI target WWPNs where `host_io_permitted` is `yes`.
 
 ## Using It
 
@@ -47,6 +48,18 @@ portshow <port>
 ```
 
 The tool does not run commands on switches. It only parses captures and prepares commands for review.
+
+## Storwize Host Access Ports
+
+Use the **Storwize host ports** button to show IBM Storage Virtualize / Storwize / FlashSystem commands for finding the target WWPNs to zone for host storage access.
+
+The primary command is:
+
+```text
+lstargetportfc -filtervalue host_io_permitted=yes:protocol=scsi
+```
+
+The useful fields in the output are `id`, `WWPN`, `host_io_permitted`, `virtualized`, and `protocol`. For normal FC SCSI host zoning, use rows where `host_io_permitted` is `yes` and `protocol` is `scsi`.
 
 ## Notebook
 

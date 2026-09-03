@@ -640,6 +640,7 @@
         <button id="hbaCommandBtn" class="secondary" type="button">Windows HBA search</button>
         <button id="uidScriptBtn" class="secondary" type="button">Windows UID script</button>
         <button id="storwizeCommandBtn" class="secondary" type="button">Storwize UID commands</button>
+        <button id="storwizeHostPortCommandBtn" class="secondary" type="button">Storwize host ports</button>
         <button id="npivNotesBtn" class="secondary" type="button">NPIV notes</button>
         <button id="saveProjectBtn" class="secondary" type="button" disabled>Save JSON</button>
         <button id="restoreProjectBtn" class="secondary" type="button">Restore JSON</button>
@@ -1149,9 +1150,9 @@ id WWPN             WWNN             port_id owning_node_id current_node_id npor
 
 Interpretation:
 
-1: intracluster, replication, storage virtualisation
-2: host access to storage
-3: don't use</template>
+Rows with host_io_permitted=yes and protocol=scsi can be used for normal FC SCSI host storage access.
+Rows with host_io_permitted=no should not be zoned for normal host storage access.
+NVMe target ports are for NVMe/FC, not normal SCSI host mapping.</template>
 
   <script>
     const WWPN_RE = /\b(?:[0-9a-fA-F]{2}:){7}[0-9a-fA-F]{2}\b/g;
@@ -1198,6 +1199,24 @@ Interpretation:
       "lshostvdiskmap -delim : <host_name_or_id>"
     ].join("\n");
 
+    const STORWIZE_HOST_ACCESS_PORT_COMMANDS = [
+      "# IBM Storage Virtualize / Storwize / FlashSystem host-access FC target ports",
+      "# Run from the storage CLI. If your SSH shell requires svcinfo, prefix the commands with svcinfo.",
+      "# Use these WWPNs for normal Brocade FC SCSI host zoning.",
+      "",
+      "# Host-access SCSI target ports only:",
+      "lstargetportfc -filtervalue host_io_permitted=yes:protocol=scsi",
+      "",
+      "# Delimited form for copying into notes or spreadsheets:",
+      "lstargetportfc -delim : -filtervalue host_io_permitted=yes:protocol=scsi",
+      "",
+      "# The useful columns are:",
+      "# id WWPN host_io_permitted virtualized protocol",
+      "",
+      "# If filtervalue is not available on your code level, run the full listing and use rows where host_io_permitted is yes and protocol is scsi:",
+      "lstargetportfc"
+    ].join("\n");
+
     const VENDOR_PREFIX_HINTS = [
       { prefixes: ["51402ec0", "20000024ff", "21000024ff", "2001000e1e"], name: "Likely QLogic/Marvell", note: "WWN prefix hint" },
       { prefixes: ["10000000c9", "20000000c9", "10000090fa", "20000090fa", "10000090fb", "20000090fb", "1000e007", "2000e007"], name: "Likely Emulex/Broadcom", note: "WWN prefix hint" },
@@ -1226,6 +1245,7 @@ Interpretation:
       hbaCommandBtn: document.getElementById("hbaCommandBtn"),
       uidScriptBtn: document.getElementById("uidScriptBtn"),
       storwizeCommandBtn: document.getElementById("storwizeCommandBtn"),
+      storwizeHostPortCommandBtn: document.getElementById("storwizeHostPortCommandBtn"),
       npivNotesBtn: document.getElementById("npivNotesBtn"),
       saveProjectBtn: document.getElementById("saveProjectBtn"),
       restoreProjectBtn: document.getElementById("restoreProjectBtn"),
@@ -3694,6 +3714,15 @@ Interpretation:
       );
     }
 
+    function showStorwizeHostPortCommands() {
+      showReference(
+        "Storwize Host-Access Port Commands",
+        "Run on the IBM Storage Virtualize, Storwize, or FlashSystem CLI. The filtered output lists FC SCSI target WWPNs where host_io_permitted is yes.",
+        STORWIZE_HOST_ACCESS_PORT_COMMANDS,
+        "storwize-host-access-ports.txt"
+      );
+    }
+
     function showNpivNotes() {
       showReference(
         "NPIV SCSI/NVMe Notes",
@@ -3706,6 +3735,7 @@ Interpretation:
     els.hbaCommandBtn.addEventListener("click", showHbaCommand);
     els.uidScriptBtn.addEventListener("click", showUidScript);
     els.storwizeCommandBtn.addEventListener("click", showStorwizeCommands);
+    els.storwizeHostPortCommandBtn.addEventListener("click", showStorwizeHostPortCommands);
     els.npivNotesBtn.addEventListener("click", showNpivNotes);
     els.copyReferenceBtn.addEventListener("click", async () => {
       await copyText(els.referenceText.value);
