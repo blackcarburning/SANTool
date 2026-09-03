@@ -60,9 +60,9 @@ The primary command is:
 lstargetportfc -filtervalue host_io_permitted=yes:protocol=scsi
 ```
 
-The useful fields in the output are `id`, `WWPN`, `host_io_permitted`, `virtualized`, and `protocol`. For normal FC SCSI host zoning, use rows where `host_io_permitted` is `yes` and `protocol` is `scsi`.
+The useful fields in the output are `id`, `WWPN`, `owning_node_id`, `current_node_id`, `host_io_permitted`, `virtualized`, and `protocol`. For normal FC SCSI host zoning, use rows where `host_io_permitted` is `yes` and `protocol` is `scsi`.
 
-The Storwize CLI `-delim :` option colon-separates output columns; it does not change the WWPN value itself into `50:05:...` notation. Paste `lstargetportfc` output into the **Storwize WWPN formatter** box to convert the compact 16-character WWPN values for Brocade zoning notes or commands.
+The Storwize CLI `-delim :` option colon-separates output columns; it does not change the WWPN value itself into `50:05:...` notation. Paste `lstargetportfc` output into the **Storwize WWPN formatter** box to convert the compact 16-character WWPN values for Brocade zoning notes or commands while retaining node ownership details.
 
 ## Notebook
 

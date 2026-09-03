@@ -701,7 +701,7 @@
       <div class="grid" style="margin-bottom:16px;">
         <div class="col-4">
           <h2>Storwize WWPN formatter</h2>
-          <p class="hint">Paste <code>lstargetportfc</code> output to find compact WWPNs and convert them to Brocade-style colon notation. Rows with host I/O fields are annotated for host zoning review.</p>
+          <p class="hint">Paste <code>lstargetportfc</code> output to find compact WWPNs and convert them to Brocade-style colon notation. Node fields are retained so the controller ownership is visible.</p>
           <div class="actions" style="margin-top:10px;">
             <button id="formatStorwizeWwpnBtn" type="button">Convert WWPNs</button>
             <button id="copyStorwizeWwpnBtn" class="secondary" type="button" disabled>Copy converted</button>
@@ -1669,6 +1669,8 @@ NVMe target ports are for NVMe/FC, not normal SCSI host mapping.</template>
           row[column] = values[index] || "";
         });
       } else {
+        row.port_id = values[3] || "";
+        row.owning_node_id = values[4] || "";
         let protocolIndex = -1;
         for (let index = values.length - 1; index >= 0; index -= 1) {
           const value = String(values[index] || "").toLowerCase();
@@ -1680,6 +1682,9 @@ NVMe target ports are for NVMe/FC, not normal SCSI host mapping.</template>
         row.host_io_permitted = "";
         row.virtualized = "";
         row.protocol = protocolIndex >= 0 ? values[protocolIndex] : "";
+        const nportidIndex = protocolIndex >= 3 ? protocolIndex - 3 : -1;
+        row.nportid = nportidIndex >= 0 ? values[nportidIndex] || "" : "";
+        row.current_node_id = nportidIndex > 5 ? values[5] || "" : "";
         if (protocolIndex >= 2) {
           row.host_io_permitted = values[protocolIndex - 2] || "";
           row.virtualized = values[protocolIndex - 1] || "";
@@ -1725,6 +1730,10 @@ NVMe target ports are for NVMe/FC, not normal SCSI host mapping.</template>
             compact,
             colon: canonicalWwpn(compact),
             id: "",
+            port_id: "",
+            owning_node_id: "",
+            current_node_id: "",
+            nportid: "",
             host_io_permitted: "",
             virtualized: "",
             protocol: "",
@@ -1781,6 +1790,9 @@ NVMe target ports are for NVMe/FC, not normal SCSI host mapping.</template>
 
       els.storwizeWwpnOutput.value = pipeTable(rows, [
         { key: "id", label: "id" },
+        { key: "owning_node_id", label: "owning_node_id" },
+        { key: "current_node_id", label: "current_node_id" },
+        { key: "port_id", label: "port_id" },
         { key: "compact", label: "WWPN" },
         { key: "colon", label: "WWPN with colons" },
         { key: "host_io_permitted", label: "host_io_permitted" },
