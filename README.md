@@ -14,6 +14,7 @@ Browser-only Brocade SAN zoning planner.
 - Produces a plain-English summary of what the generated commands will do.
 - Exports parsed data as an XLSX workbook.
 - Saves and restores complete project state as JSON, with browser memory of the last project.
+- Provides a tabbed notebook for task notes and command snippets, with rich-text formatting saved in project JSON and exported to the workbook.
 - Bulk-selects aliases from pasted Windows `Get-InitiatorPort` WWPN output.
 - Builds an OS disk, drive-letter, or mount-point to Storwize/FlashSystem volume mapping list by matching Windows disk UniqueId values to `lshostvdiskmap` `vdisk_UID` values.
 
@@ -46,6 +47,12 @@ portshow <port>
 ```
 
 The tool does not run commands on switches. It only parses captures and prepares commands for review.
+
+## Notebook
+
+Use the **Tabbed notebook** section for zoning task notes, handover text, checks, and saved command snippets. Tabs can be added, duplicated, deleted, and renamed. The editor supports bold, italic, normal or computer-style font, paragraph or code-block formatting, text size, text colour, highlight colour, bullets, numbered lists, and clearing selected formatting.
+
+The **Add command output** button inserts the current generated zoning command block into the active note tab. Notebook content is saved in project JSON, restored from browser memory on reload, and included in the spreadsheet export with both plain text and saved HTML.
 
 ## OS Disk To Storwize Volume Mapping
 

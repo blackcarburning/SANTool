@@ -477,6 +477,111 @@
       margin-top: 3px;
     }
 
+    .notebook-layout {
+      display: grid;
+      grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    @media (max-width: 980px) {
+      .notebook-layout { grid-template-columns: 1fr; }
+    }
+
+    .notebook-tabs {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .notebook-tab {
+      width: 100%;
+      justify-content: flex-start;
+      text-align: left;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .notebook-tab[aria-selected="true"] {
+      background: #e7f6f3;
+      border-color: #99d7cf;
+      color: var(--accent-strong);
+    }
+
+    .notebook-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      background: var(--panel-soft);
+      margin-bottom: 10px;
+    }
+
+    .notebook-toolbar button {
+      min-height: 34px;
+      padding: 6px 9px;
+    }
+
+    .notebook-toolbar select {
+      width: auto;
+      min-height: 34px;
+      padding: 6px 9px;
+    }
+
+    .notebook-toolbar input[type="color"] {
+      width: 42px;
+      min-height: 34px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 4px;
+      background: #ffffff;
+      cursor: pointer;
+    }
+
+    .notebook-editor {
+      min-height: 300px;
+      max-height: 620px;
+      overflow: auto;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 14px;
+      background: #ffffff;
+      color: var(--text);
+      line-height: 1.55;
+      outline: none;
+    }
+
+    .notebook-editor:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.13);
+    }
+
+    .notebook-editor:empty::before {
+      content: attr(data-placeholder);
+      color: #98a2b3;
+    }
+
+    .notebook-editor pre {
+      background: var(--code-bg);
+      color: var(--code-text);
+      border-radius: 8px;
+      padding: 10px 12px;
+      overflow: auto;
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    .notebook-editor code {
+      background: #eef2f6;
+      border: 1px solid #d9e2ec;
+      border-radius: 6px;
+      padding: 1px 5px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
     dialog {
       width: min(980px, calc(100vw - 32px));
       border: 1px solid var(--line);
@@ -641,6 +746,49 @@
               <tbody id="volumeMapRows"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="notebookSection">
+      <div class="split-title">
+        <h2>Tabbed notebook</h2>
+        <div class="actions">
+          <button id="addNoteTabBtn" class="secondary" type="button">Add tab</button>
+          <button id="duplicateNoteTabBtn" class="secondary" type="button">Duplicate tab</button>
+          <button id="deleteNoteTabBtn" class="danger" type="button">Delete tab</button>
+        </div>
+      </div>
+      <div class="notebook-layout">
+        <div>
+          <div id="notebookTabs" class="notebook-tabs" role="tablist" aria-label="Notebook tabs"></div>
+          <label for="notebookTabName">Current tab name</label>
+          <input id="notebookTabName" type="text" maxlength="80" placeholder="Notes">
+          <p id="notebookStatus" class="hint">Notebook is saved in project JSON and browser memory.</p>
+        </div>
+        <div>
+          <div class="notebook-toolbar" aria-label="Notebook formatting controls">
+            <button id="noteBoldBtn" class="secondary" type="button" title="Bold"><strong>B</strong></button>
+            <button id="noteItalicBtn" class="secondary" type="button" title="Italic"><em>I</em></button>
+            <button id="noteNormalFontBtn" class="secondary" type="button">Normal font</button>
+            <button id="noteMonoFontBtn" class="secondary" type="button">Computer font</button>
+            <button id="noteParagraphBtn" class="secondary" type="button">Paragraph</button>
+            <button id="noteCodeBlockBtn" class="secondary" type="button">Code block</button>
+            <select id="noteSizeSelect" aria-label="Text size">
+              <option value="">Size</option>
+              <option value="2">Small</option>
+              <option value="3">Normal</option>
+              <option value="4">Large</option>
+              <option value="5">Heading</option>
+            </select>
+            <label style="margin:0;">Text <input id="noteTextColor" type="color" value="#142033" aria-label="Text colour"></label>
+            <label style="margin:0;">Highlight <input id="noteHighlightColor" type="color" value="#fff2cc" aria-label="Highlight colour"></label>
+            <button id="noteBulletBtn" class="secondary" type="button">Bullets</button>
+            <button id="noteNumberBtn" class="secondary" type="button">Numbers</button>
+            <button id="noteClearStyleBtn" class="secondary" type="button">Clear style</button>
+            <button id="insertCommandsNoteBtn" class="secondary" type="button">Add command output</button>
+          </div>
+          <div id="notebookEditor" class="notebook-editor" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" data-placeholder="Write task notes, command snippets, zoning lines, checks, and handover text here."></div>
         </div>
       </div>
     </section>
@@ -1010,7 +1158,10 @@ Interpretation:
     const COMPACT_WWPN_RE = /\b[0-9a-fA-F]{16}\b/g;
     const SAFE_NAME_RE = /^[A-Za-z0-9_$^.-]+$/;
     const PROJECT_STORAGE_KEY = "brocade-zoning-planner:last-project";
-    const PROJECT_VERSION = 2;
+    const PROJECT_VERSION = 3;
+    const NOTE_ALLOWED_TAGS = new Set(["B", "STRONG", "I", "EM", "U", "S", "SPAN", "FONT", "DIV", "P", "BR", "UL", "OL", "LI", "PRE", "CODE", "BLOCKQUOTE"]);
+    const NOTE_DROP_TAGS = new Set(["SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "LINK", "META"]);
+    const NOTE_ALLOWED_STYLES = new Set(["color", "background-color", "font-family", "font-size", "font-weight", "font-style", "text-decoration"]);
     const WINDOWS_HBA_COMMAND = [
       "$ErrorActionPreference = 'Stop'",
       "",
@@ -1062,6 +1213,8 @@ Interpretation:
       visibleDeviceIds: [],
       wwpnMatches: [],
       volumeMappings: [],
+      notebookTabs: [],
+      activeNotebookTabId: "",
       referenceFilename: "brocade-reference.txt",
       autoSaveReady: false
     };
@@ -1100,6 +1253,27 @@ Interpretation:
       volumeMapStatus: document.getElementById("volumeMapStatus"),
       volumeMapSummary: document.getElementById("volumeMapSummary"),
       volumeMapRows: document.getElementById("volumeMapRows"),
+      notebookSection: document.getElementById("notebookSection"),
+      notebookTabs: document.getElementById("notebookTabs"),
+      notebookTabName: document.getElementById("notebookTabName"),
+      notebookEditor: document.getElementById("notebookEditor"),
+      notebookStatus: document.getElementById("notebookStatus"),
+      addNoteTabBtn: document.getElementById("addNoteTabBtn"),
+      duplicateNoteTabBtn: document.getElementById("duplicateNoteTabBtn"),
+      deleteNoteTabBtn: document.getElementById("deleteNoteTabBtn"),
+      noteBoldBtn: document.getElementById("noteBoldBtn"),
+      noteItalicBtn: document.getElementById("noteItalicBtn"),
+      noteNormalFontBtn: document.getElementById("noteNormalFontBtn"),
+      noteMonoFontBtn: document.getElementById("noteMonoFontBtn"),
+      noteParagraphBtn: document.getElementById("noteParagraphBtn"),
+      noteCodeBlockBtn: document.getElementById("noteCodeBlockBtn"),
+      noteSizeSelect: document.getElementById("noteSizeSelect"),
+      noteTextColor: document.getElementById("noteTextColor"),
+      noteHighlightColor: document.getElementById("noteHighlightColor"),
+      noteBulletBtn: document.getElementById("noteBulletBtn"),
+      noteNumberBtn: document.getElementById("noteNumberBtn"),
+      noteClearStyleBtn: document.getElementById("noteClearStyleBtn"),
+      insertCommandsNoteBtn: document.getElementById("insertCommandsNoteBtn"),
       summarySection: document.getElementById("summarySection"),
       switchshowImportSection: document.getElementById("switchshowImportSection"),
       npivImportSection: document.getElementById("npivImportSection"),
@@ -1179,6 +1353,208 @@ Interpretation:
         result.push(cleaned);
       });
       return result;
+    }
+
+    function noteId() {
+      return `note-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    function defaultNotebookTab(title = "Notes", html = "") {
+      return { id: noteId(), title, html };
+    }
+
+    function ensureNotebookTabs() {
+      if (!Array.isArray(state.notebookTabs) || !state.notebookTabs.length) {
+        const tab = defaultNotebookTab();
+        state.notebookTabs = [tab];
+        state.activeNotebookTabId = tab.id;
+      }
+      if (!state.notebookTabs.some((tab) => tab.id === state.activeNotebookTabId)) {
+        state.activeNotebookTabId = state.notebookTabs[0].id;
+      }
+    }
+
+    function activeNotebookTab() {
+      ensureNotebookTabs();
+      return state.notebookTabs.find((tab) => tab.id === state.activeNotebookTabId) || state.notebookTabs[0];
+    }
+
+    function htmlToPlainText(html) {
+      const scratch = document.createElement("div");
+      scratch.innerHTML = sanitizeNoteHtml(html || "");
+      return scratch.textContent.replace(/\u00a0/g, " ").trim();
+    }
+
+    function hasNotebookWorkspace() {
+      ensureNotebookTabs();
+      return state.notebookTabs.some((tab, index) => {
+        const title = String(tab.title || "").trim();
+        return htmlToPlainText(tab.html).length > 0 || (index > 0 && title) || (index === 0 && title && title !== "Notes");
+      });
+    }
+
+    function safeNoteStyleValue(value) {
+      const text = String(value || "").trim();
+      if (!text || /url\s*\(|expression\s*\(|javascript:/i.test(text)) return "";
+      return /^[#(),.%\w\s"'-]+$/.test(text) ? text : "";
+    }
+
+    function sanitizeNoteHtml(html) {
+      const template = document.createElement("template");
+      template.innerHTML = String(html || "");
+
+      function cleanNode(node) {
+        if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent || "");
+        if (node.nodeType !== Node.ELEMENT_NODE) return document.createDocumentFragment();
+
+        const tag = node.tagName.toUpperCase();
+        const cleanChildren = () => {
+          const fragment = document.createDocumentFragment();
+          Array.from(node.childNodes).forEach((child) => fragment.appendChild(cleanNode(child)));
+          return fragment;
+        };
+
+        if (NOTE_DROP_TAGS.has(tag)) return document.createDocumentFragment();
+        if (!NOTE_ALLOWED_TAGS.has(tag)) return cleanChildren();
+
+        const el = document.createElement(tag.toLowerCase());
+        if (tag === "FONT") {
+          ["color", "face", "size"].forEach((attr) => {
+            const value = safeNoteStyleValue(node.getAttribute(attr));
+            if (value) el.setAttribute(attr, value);
+          });
+        }
+        if (node.hasAttribute("style")) {
+          const declarations = String(node.getAttribute("style") || "").split(";");
+          declarations.forEach((declaration) => {
+            const [rawName, ...rawValue] = declaration.split(":");
+            const name = String(rawName || "").trim().toLowerCase();
+            const value = safeNoteStyleValue(rawValue.join(":"));
+            if (NOTE_ALLOWED_STYLES.has(name) && value) el.style.setProperty(name, value);
+          });
+        }
+
+        el.appendChild(cleanChildren());
+        return el;
+      }
+
+      const cleaned = document.createElement("div");
+      Array.from(template.content.childNodes).forEach((node) => cleaned.appendChild(cleanNode(node)));
+      return cleaned.innerHTML;
+    }
+
+    function saveActiveNotebookNote() {
+      const tab = activeNotebookTab();
+      tab.html = sanitizeNoteHtml(els.notebookEditor.innerHTML);
+    }
+
+    function renderNotebookTabs() {
+      ensureNotebookTabs();
+      els.notebookTabs.innerHTML = "";
+      const fragment = document.createDocumentFragment();
+      state.notebookTabs.forEach((tab) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "secondary notebook-tab";
+        button.setAttribute("role", "tab");
+        button.setAttribute("aria-selected", tab.id === state.activeNotebookTabId ? "true" : "false");
+        button.textContent = tab.title || "Untitled";
+        button.addEventListener("click", () => {
+          saveActiveNotebookNote();
+          state.activeNotebookTabId = tab.id;
+          renderNotebook();
+          autoSaveProject();
+        });
+        fragment.appendChild(button);
+      });
+      els.notebookTabs.appendChild(fragment);
+      els.deleteNoteTabBtn.disabled = state.notebookTabs.length <= 1;
+    }
+
+    function renderNotebook() {
+      const tab = activeNotebookTab();
+      renderNotebookTabs();
+      els.notebookTabName.value = tab.title || "";
+      els.notebookEditor.innerHTML = sanitizeNoteHtml(tab.html || "");
+      els.notebookStatus.textContent = `${state.notebookTabs.length} notebook tab${state.notebookTabs.length === 1 ? "" : "s"} saved in this project.`;
+    }
+
+    function addNotebookTab(copyCurrent = false) {
+      saveActiveNotebookNote();
+      const current = activeNotebookTab();
+      const tab = copyCurrent
+        ? defaultNotebookTab(`${current.title || "Notes"} copy`, current.html || "")
+        : defaultNotebookTab(`Notes ${state.notebookTabs.length + 1}`, "");
+      state.notebookTabs.push(tab);
+      state.activeNotebookTabId = tab.id;
+      renderNotebook();
+      autoSaveProject();
+    }
+
+    function deleteNotebookTab() {
+      ensureNotebookTabs();
+      if (state.notebookTabs.length <= 1) return;
+      const activeIndex = state.notebookTabs.findIndex((tab) => tab.id === state.activeNotebookTabId);
+      state.notebookTabs.splice(activeIndex, 1);
+      const next = state.notebookTabs[Math.max(0, activeIndex - 1)] || state.notebookTabs[0];
+      state.activeNotebookTabId = next.id;
+      renderNotebook();
+      autoSaveProject();
+    }
+
+    function editorCommand(command, value = null) {
+      els.notebookEditor.focus();
+      document.execCommand(command, false, value);
+      saveActiveNotebookNote();
+      autoSaveProject();
+    }
+
+    function insertHtmlIntoNotebook(html) {
+      els.notebookEditor.focus();
+      document.execCommand("insertHTML", false, sanitizeNoteHtml(html));
+      saveActiveNotebookNote();
+      autoSaveProject();
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function insertCommandOutputIntoNotebook() {
+      const commands = els.commandOutput.value.trim();
+      if (!commands) {
+        els.notebookStatus.textContent = "Generate zoning commands first, then add them to the notebook.";
+        return;
+      }
+      const zoneName = els.zoneName.value.trim() || "Zone commands";
+      insertHtmlIntoNotebook(`<p><strong>${escapeHtml(zoneName)}</strong></p><pre>${escapeHtml(commands)}</pre>`);
+      els.notebookStatus.textContent = `Added command output to ${activeNotebookTab().title || "current tab"}.`;
+    }
+
+    function serialiseNotebookTabs() {
+      saveActiveNotebookNote();
+      ensureNotebookTabs();
+      return state.notebookTabs.map((tab) => ({
+        id: tab.id || noteId(),
+        title: String(tab.title || "Untitled").trim() || "Untitled",
+        html: sanitizeNoteHtml(tab.html || "")
+      }));
+    }
+
+    function restoreNotebook(notebook) {
+      const tabs = notebook && Array.isArray(notebook.tabs) ? notebook.tabs : [];
+      state.notebookTabs = tabs.length ? tabs.map((tab) => ({
+        id: tab.id || noteId(),
+        title: String(tab.title || "Untitled").trim() || "Untitled",
+        html: sanitizeNoteHtml(tab.html || "")
+      })) : [defaultNotebookTab()];
+      state.activeNotebookTabId = notebook && notebook.activeTabId ? notebook.activeTabId : state.notebookTabs[0].id;
+      ensureNotebookTabs();
+      renderNotebook();
     }
 
     function searchTerms(value) {
@@ -2351,14 +2727,18 @@ Interpretation:
     }
 
     function hasSavableProject() {
-      return state.fabrics.length > 0 || hasVolumeWorkspace();
+      return state.fabrics.length > 0 || hasVolumeWorkspace() || hasNotebookWorkspace();
+    }
+
+    function refreshProjectButtons() {
+      els.saveProjectBtn.disabled = !hasSavableProject();
+      els.downloadWorkbookBtn.disabled = !hasSavableProject();
     }
 
     function renderAll() {
       const hasData = state.fabrics.length > 0;
       [els.summarySection, els.switchshowImportSection, els.npivImportSection, els.wwpnBulkSection, els.activeConfigSection, els.deviceSection, els.commandSection].forEach((el) => el.classList.toggle("hidden", !hasData));
-      els.saveProjectBtn.disabled = !hasSavableProject();
-      els.downloadWorkbookBtn.disabled = !hasSavableProject();
+      refreshProjectButtons();
       renderVolumeMappings();
       if (!hasData) return;
       renderFabricSelect();
@@ -2774,6 +3154,8 @@ Interpretation:
       state.visibleDeviceIds = [];
       state.wwpnMatches = [];
       state.volumeMappings = [];
+      state.notebookTabs = [defaultNotebookTab()];
+      state.activeNotebookTabId = state.notebookTabs[0].id;
       [els.fabricAFile, els.fabricBFile, els.extraFiles, els.switchshowFiles, els.npivEvidenceFiles, els.restoreProjectFile, els.osUidFiles, els.storwizeUidFiles].forEach((input) => { input.value = ""; });
       els.deviceSearch.value = "";
       els.activeZoneSearch.value = "";
@@ -2797,6 +3179,7 @@ Interpretation:
       els.downloadCommandsBtn.disabled = true;
       els.saveProjectBtn.disabled = true;
       els.downloadWorkbookBtn.disabled = true;
+      renderNotebook();
       renderAll();
       localStorage.removeItem(PROJECT_STORAGE_KEY);
       setStatus("No files loaded yet.", "");
@@ -2864,6 +3247,10 @@ Interpretation:
       const ports = [["Fabric", "Switch", "Index", "Port", "Address", "Media", "Speed", "State", "Proto", "Details", "WWPNs", "Source"]];
       const warnings = [["Fabric", "Warning"]];
       const volumeMap = volumeMappingCsvRows();
+      const notebook = [["Tab", "Plain text", "Styled HTML"]];
+      serialiseNotebookTabs().forEach((tab) => {
+        notebook.push([tab.title, htmlToPlainText(tab.html), tab.html]);
+      });
 
       state.fabrics.forEach((fabric) => {
         summary.push([
@@ -2943,7 +3330,8 @@ Interpretation:
         ["Configs", configs],
         ["Switch Ports", ports],
         ["Warnings", warnings],
-        ["Volume UID Map", volumeMap]
+        ["Volume UID Map", volumeMap],
+        ["Notebook", notebook]
       ];
     }
 
@@ -3117,6 +3505,10 @@ Interpretation:
         selected: Array.from(state.selected),
         wwpnMatches: state.wwpnMatches,
         volumeMappings: state.volumeMappings,
+        notebook: {
+          activeTabId: state.activeNotebookTabId,
+          tabs: serialiseNotebookTabs()
+        },
         ui: {
           osUidText: els.osUidText.value,
           storwizeUidText: els.storwizeUidText.value,
@@ -3160,6 +3552,7 @@ Interpretation:
       state.selected = new Set(Array.isArray(project.selected) ? project.selected : []);
       state.wwpnMatches = Array.isArray(project.wwpnMatches) ? project.wwpnMatches : [];
       state.volumeMappings = Array.isArray(project.volumeMappings) ? project.volumeMappings : [];
+      restoreNotebook(project.notebook || {});
       const ui = project.ui || {};
       els.osUidText.value = ui.osUidText || "";
       els.storwizeUidText.value = ui.storwizeUidText || "";
@@ -3346,6 +3739,55 @@ Interpretation:
         autoSaveProject();
       });
     });
+    els.addNoteTabBtn.addEventListener("click", () => addNotebookTab(false));
+    els.duplicateNoteTabBtn.addEventListener("click", () => addNotebookTab(true));
+    els.deleteNoteTabBtn.addEventListener("click", deleteNotebookTab);
+    els.notebookTabName.addEventListener("input", () => {
+      const tab = activeNotebookTab();
+      tab.title = els.notebookTabName.value.trim() || "Untitled";
+      renderNotebookTabs();
+      refreshProjectButtons();
+      autoSaveProject();
+    });
+    els.notebookEditor.addEventListener("input", () => {
+      saveActiveNotebookNote();
+      els.notebookStatus.textContent = `Saved edits in ${activeNotebookTab().title || "current tab"}.`;
+      refreshProjectButtons();
+      autoSaveProject();
+    });
+    els.notebookEditor.addEventListener("paste", (event) => {
+      event.preventDefault();
+      const clipboard = event.clipboardData || window.clipboardData;
+      const html = clipboard ? clipboard.getData("text/html") : "";
+      const text = clipboard ? clipboard.getData("text/plain") : "";
+      if (html) {
+        insertHtmlIntoNotebook(html);
+      } else if (text) {
+        insertHtmlIntoNotebook(text.split(/\r?\n/).map((line) => `<div>${escapeHtml(line) || "<br>"}</div>`).join(""));
+      }
+    });
+    els.noteBoldBtn.addEventListener("click", () => editorCommand("bold"));
+    els.noteItalicBtn.addEventListener("click", () => editorCommand("italic"));
+    els.noteNormalFontBtn.addEventListener("click", () => editorCommand("fontName", "Inter, Segoe UI, sans-serif"));
+    els.noteMonoFontBtn.addEventListener("click", () => editorCommand("fontName", "Consolas, Liberation Mono, monospace"));
+    els.noteParagraphBtn.addEventListener("click", () => editorCommand("formatBlock", "p"));
+    els.noteCodeBlockBtn.addEventListener("click", () => editorCommand("formatBlock", "pre"));
+    els.noteSizeSelect.addEventListener("change", () => {
+      if (els.noteSizeSelect.value) editorCommand("fontSize", els.noteSizeSelect.value);
+      els.noteSizeSelect.value = "";
+    });
+    els.noteTextColor.addEventListener("change", () => editorCommand("foreColor", els.noteTextColor.value));
+    els.noteHighlightColor.addEventListener("change", () => {
+      try {
+        editorCommand("hiliteColor", els.noteHighlightColor.value);
+      } catch (error) {
+        editorCommand("backColor", els.noteHighlightColor.value);
+      }
+    });
+    els.noteBulletBtn.addEventListener("click", () => editorCommand("insertUnorderedList"));
+    els.noteNumberBtn.addEventListener("click", () => editorCommand("insertOrderedList"));
+    els.noteClearStyleBtn.addEventListener("click", () => editorCommand("removeFormat"));
+    els.insertCommandsNoteBtn.addEventListener("click", insertCommandOutputIntoNotebook);
     els.fabricSelect.addEventListener("change", () => {
       state.activeFabricIndex = Number(els.fabricSelect.value);
       state.selected.clear();
@@ -3452,6 +3894,7 @@ Interpretation:
       }
     });
     renderVolumeMappings();
+    renderNotebook();
     restoreLastProject();
   </script>
 </body>
