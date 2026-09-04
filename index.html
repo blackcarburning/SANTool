@@ -3378,8 +3378,18 @@ NVMe target ports are for NVMe/FC, not normal SCSI host mapping.</template>
     function selectedDevices() {
       const fabric = activeFabric();
       if (!fabric) return [];
-      const selected = fabric.devices.filter((device) => state.selected.has(device.id));
+      const selected = fabric.devices.filter((device) => {
+        if (!state.selected.has(device.id)) return false;
+        if (state.deviceActiveOnly && !deviceIsInActiveConfig(fabric, device)) return false;
+        return true;
+      });
       return selected;
+    }
+
+    function ignoredSelectedDevices() {
+      const fabric = activeFabric();
+      if (!fabric || !state.deviceActiveOnly) return [];
+      return fabric.devices.filter((device) => state.selected.has(device.id) && !deviceIsInActiveConfig(fabric, device));
     }
 
     function quote(value) {
@@ -3401,13 +3411,21 @@ NVMe target ports are for NVMe/FC, not normal SCSI host mapping.</template>
     function generateCommands() {
       const fabric = activeFabric();
       const devices = selectedDevices();
+      const ignoredDevices = ignoredSelectedDevices();
       const zoneName = els.zoneName.value.trim();
       const mode = els.configMode.value;
       const targetConfig = mode === "existing" ? els.existingConfig.value.trim() : els.newConfigName.value.trim();
       const problems = validateNames(zoneName, mode, targetConfig);
 
-      if (devices.length < 2) problems.push("Select at least two devices or members to zone together.");
+      if (devices.length < 2) {
+        problems.push(state.deviceActiveOnly
+          ? "Select at least two aliases from the active config to zone together."
+          : "Select at least two devices or members to zone together.");
+      }
       if (problems.length) {
+        if (ignoredDevices.length) {
+          problems.push(`${ignoredDevices.length} previously selected device${ignoredDevices.length === 1 ? " is" : "s are"} outside the active config and ignored while active-config-only is on.`);
+        }
         els.plainSummary.textContent = problems.join("\n");
         els.commandOutput.value = "";
         els.copyCommandsBtn.disabled = true;
@@ -3438,6 +3456,10 @@ NVMe target ports are for NVMe/FC, not normal SCSI host mapping.</template>
       const summary = [];
       summary.push(`On ${fabric.fabricName} (${fabric.switchName || "switch unknown"}), these devices are being zoned together:`);
       summary.push(selectedText.map((item) => `- ${item}`).join("\n"));
+      if (ignoredDevices.length) {
+        summary.push("");
+        summary.push(`${ignoredDevices.length} previously selected device${ignoredDevices.length === 1 ? " is" : "s are"} outside the active config and ignored because active-config-only is on.`);
+      }
       summary.push("");
       summary.push(`The tool will create zone ${zoneName} with ${members.length} member${members.length === 1 ? "" : "s"}.`);
       if (mode === "existing") {
